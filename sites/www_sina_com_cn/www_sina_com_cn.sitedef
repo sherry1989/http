@@ -1,0 +1,10 @@
+#
+# Site definition script
+#
+
+[HTML]
+/;www_sina_com_cn.pagedef;142100
+
+[RESOURCES]
+js/67/2011/0621/14.js;3200
+favicon.ico;5400

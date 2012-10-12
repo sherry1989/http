@@ -1,0 +1,29 @@
+#
+# www_10086_com.pagedef page definiton file
+#
+
+# Load resouces
+h.js;hm.baidu.com
+s/kissy/1.2.0/sizzle-min.js;a.tbcdn.cn
+s/kissy/1.2.0/switchable-min.js;a.tbcdn.cn
+tbk_inf.js;z.alimama.com
+s/kissy/1.2.0/kissy-min.js;a.tbcdn.cn
+s/ac.js;a.tbcdn.cn
+s/atp.js;a.tbcdn.cn
+s/aplus.js;a.tbcdn.cn
+go/act/mmbd/phonecard.php;www.taobao.com
+apps/med/other/tbk/shouji.js;a.tbcdn.cn
+go/act/mmbd/qqcard.php;www.taobao.com
+go/act/mmbd/gamecard.php;www.taobao.com
+go/act/mmbd/hotgame.php;www.taobao.com
+apps/med/other/tbk/youxi.js;a.tbcdn.cn
+yui/2.8.0r4/build/yahoo-dom-event/yahoo-dom-event.js;a.tbcdn.cn
+apps/med/other/tbk/lvxing.js;a.tbcdn.cn
+remote/get_city.htm;jipiao.trip.taobao.com
+apps/med/other/tbk/chongzhi.css;a.tbcdn.cn
+tps/i3/T1dKOXXnxyXXXXXXXX-78-24.png;img03.taobaocdn.com
+tps/i4/T18uKXXkXyXXXXXXXX-89-24.png;img04.taobaocdn.com
+images/main.jpg;www.10086.com
+3.gif;acookie.taobao.com
+tps/i4/T13SSqXgVdXXXXXXXX-18-28.png;img04.taobaocdn.com
+favicon.ico;www.10086.com

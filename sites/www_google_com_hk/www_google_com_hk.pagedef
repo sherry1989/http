@@ -1,0 +1,16 @@
+
+#
+# www_google_com_hk.pagedef page definiton file
+#
+
+# Load resouces
+xjs/js1.js
+extern_chrome/js2.js
+js/js3.js;ssl.gstatic.com
+images/cssimage1.png;ssl.gstatic.com
+images/cssimage2.png
+images/cssimage3.png
+textinputassistant/image1.png;www.google.com
+images/image2.gif
+favicon.ico
+

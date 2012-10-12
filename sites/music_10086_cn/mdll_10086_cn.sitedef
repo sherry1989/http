@@ -1,0 +1,7 @@
+[RESOURCES]
+newweb/jsp/common/toenAndUpdateSession.jsp;0
+newweb/jsp/v3_index/v5_fxb.jsp;700
+newweb/jsp/framewor/data/limit/login.jsp;20
+newweb/jsp/v3_ring/ringGetLoginState_v2.jsp;20
+newweb/jsp/common/validatecode.jsp;1200
+newweb/jsp/common/validatecodeFlash.jsp;1200

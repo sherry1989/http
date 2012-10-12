@@ -1,0 +1,10 @@
+#
+# Site definition script
+#
+
+[HTML]
+/;www_10086_com.pagedef;2700
+
+[RESOURCES]
+images/main.jpg;132400
+favicon.ico;900

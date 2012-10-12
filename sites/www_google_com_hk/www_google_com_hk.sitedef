@@ -1,0 +1,16 @@
+#
+# Site definition script
+#
+
+[HTML]
+/;www_google_com_hk.pagedef;17900
+
+[RESOURCES]
+xjs/js1.js;125000
+extern_chrome/js2.js;12100
+images/cssimage2.png;7000
+images/cssimage3.png;28600
+images/image2.gif;5200
+favicon.ico;1100
+
+
