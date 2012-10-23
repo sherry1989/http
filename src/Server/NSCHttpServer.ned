@@ -24,6 +24,6 @@ simple NSCHttpServer extends HttpServer
 {
     @class(NSCHttpServer);
     //--added by wangqian, 2012-10-16
-    int protocolType;
+    int protocolType = default(1);
     //--added end
 }

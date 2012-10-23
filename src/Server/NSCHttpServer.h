@@ -54,28 +54,28 @@ class NSCHttpServer : public HttpServer
 
         //--added by wangqian, 2012-10-15
         /** send HTTP reply message though TCPSocket depends on the TCP DataTransferMode*/
-        virtual void sendMessage(TCPSocket *socket, RealHttpReplyMessage* reply);
+        virtual void sendMessage(TCPSocket *socket, HttpReplyMessage *reply);
 
         /** Handle a received data message, e.g. check if the content requested exists. */
-        virtual RealHttpReplyMessage *handleReceivedMessage(cMessage *msg);
+        virtual HttpReplyMessage *handleReceivedMessage(cMessage *msg);
 
         /*
          * Format an application TCP_TRANSFER_BYTESTREAM response message which can be sent though NSC TCP depence on the application layer protocol
          * the protocol type can be HTTP \ SPDY \ HTTPS+M \ HTTPNF
          */
-        std::string formatByteResponseMessage(const RealHttpReplyMessage* httpResponse);
+        std::string formatByteResponseMessage(HttpReplyMessage *httpResponse);
 
         /** Format a response message to HTTP Response Message */
-        std::string formatHttpResponseMessage(const RealHttpReplyMessage* httpResponse);
+        std::string formatHttpResponseMessage(const RealHttpReplyMessage *httpResponse);
 
         /** Format a response message to SPDY Response Message */
-        std::string formatSpdyResponseMessage(const RealHttpReplyMessage* httpResponse);
+        std::string formatSpdyResponseMessage(const RealHttpReplyMessage *httpResponse);
 
         /** Format a response message to HTTP S+M Response Message */
-        std::string formatHttpSMResponseMessage(const RealHttpReplyMessage* httpResponse);
+        std::string formatHttpSMResponseMessage(const RealHttpReplyMessage *httpResponse);
 
         /** Format a response message to HTTPNF Response Message */
-        std::string formatHttpNFResponseMessage(const RealHttpReplyMessage* httpResponse);
+        std::string formatHttpNFResponseMessage(const RealHttpReplyMessage *httpResponse);
         //--added end
 
     protected:
@@ -84,7 +84,7 @@ class NSCHttpServer : public HttpServer
          */
         struct ReplyInfo
         {
-            RealHttpReplyMessage* reply;
+            HttpReplyMessage* reply;
             bool readyToSend;
         };
         typedef std::deque<ReplyInfo> HttpReplyInfoQueue;

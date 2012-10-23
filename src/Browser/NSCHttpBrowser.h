@@ -119,38 +119,30 @@ class NSCHttpBrowser : public HttpBrowser
 
         //--added by wangqian, 2012-10-16
         /** send HTTP reply message though TCPSocket depends on the TCP DataTransferMode*/
-        virtual void sendMessage(TCPSocket *socket, RealHttpRequestMessage* reply);
+        virtual void sendMessage(TCPSocket *socket, HttpRequestMessage *reply);
 
         /*
          * Format an application TCP_TRANSFER_BYTESTREAM Request message which can be sent though NSC TCP depence on the application layer protocol
          * the protocol type can be HTTP \ SPDY \ HTTPS+M \ HTTPNF
          */
-        std::string formatByteRequestMessage(const RealHttpRequestMessage* httpRequest);
+        std::string formatByteRequestMessage(HttpRequestMessage *httpRequest);
 
         /** Format a Request message to HTTP Request Message */
-        std::string formatHttpRequestMessage(const RealHttpRequestMessage* httpRequest);
+        std::string formatHttpRequestMessage(const RealHttpRequestMessage *httpRequest);
 
         /** Format a Request message to SPDY Request Message */
-        std::string formatSpdyRequestMessage(const RealHttpRequestMessage* httpRequest);
+        std::string formatSpdyRequestMessage(const RealHttpRequestMessage *httpRequest);
 
         /** Format a Request message to HTTP S+M Request Message */
-        std::string formatHttpSMRequestMessage(const RealHttpRequestMessage* httpRequest);
+        std::string formatHttpSMRequestMessage(const RealHttpRequestMessage *httpRequest);
 
         /** Format a Request message to HTTPNF Request Message */
-        std::string formatHttpNFRequestMessage(const RealHttpRequestMessage* httpRequest);
+        std::string formatHttpNFRequestMessage(const RealHttpRequestMessage *httpRequest);
         //--added end
 
     protected:
         /** @name Socket establishment and data submission */
         //@{
-        /**
-         * Establishes a socket and queues a single message for transmission.
-         * A new socket is created and added to the collection. The message is assigned to a data structure
-         * stored as a myPtr with the socket. The message is transmitted once the socket is established, signaled
-         * by a call to socketEstablished.
-         */
-        virtual void submitToSocket(const char* moduleName, int connectPort, RealHttpRequestMessage *msg);
-
         /**
          * Establishes a socket and assigns a queue of messages to be transmitted.
          * Same as the overloaded version, except a number of messages are queued for transmission. The same socket

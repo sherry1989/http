@@ -19,6 +19,8 @@
 #include "CPCSvrSupportDetect.h"
 #include "CPHSvrSupportDetect.h"
 #include "ByteArrayMessage.h"
+#include "HttpResponsePraser.h"
+
 #include <stdexcept>
 
 Define_Module(NSCHttpBrowser);
@@ -33,6 +35,7 @@ NSCHttpBrowser::NSCHttpBrowser()
 
     pPipeReq = NULL;
     pSvrSupportDetect = NULL;
+
 }
 
 NSCHttpBrowser::~NSCHttpBrowser()
@@ -127,12 +130,12 @@ void NSCHttpBrowser::socketEstablished(int connId, void *yourPtr)
         //--modified by wangqian, 2012-10-16
         // change message send method to adapt to the use of NSC
         //socket->send(msg);
-        sendMessage(socket, check_and_cast<RealHttpRequestMessage *>(msg));
+        sendMessage(socket, static_cast<HttpRequestMessage *>(msg));
         //--modified end
 
         //--add by wangqian, 2012-07-04
         // add msg log when send it
-        //static_cast<const RealHttpRequestMessage *>(msg)
+        //static_cast<const HttpRequestMessage *>(msg)
 //        const RealHttpRequestMessage* httpRequest;
 //        logRequest(httpRequest);
         //--add end
@@ -155,9 +158,20 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
     PipeSockData *sockdata = (PipeSockData*)yourPtr;
     TCPSocket *socket = sockdata->socket;
 
-    HttpContentType contentType = pSvrSupportDetect->setSvrSupportForSock(sockdata, msg);
+    //--added by wangqian, 2012-10-17
+    HttpResponsePraser *praser = new HttpResponsePraser();
 
-    handleDataMessage(msg);
+    cPacket *prasedMsg = praser->praseHttpResponse(msg);
+
+    //--added end
+
+    HttpContentType contentType = pSvrSupportDetect->setSvrSupportForSock(sockdata, prasedMsg);
+
+    handleDataMessage(prasedMsg);
+
+    //--added by wangqian, 2012-10-17
+    delete praser;
+    //--added end
 
     //--added by wangqian, 2012-05-15
     --sockdata->pending;
@@ -180,12 +194,12 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
             //--modified by wangqian, 2012-10-16
             // change message send method to adapt to the use of NSC
             //socket->send(sendMsg);
-            sendMessage(socket, check_and_cast<RealHttpRequestMessage *>(sendMsg));
+            sendMessage(socket, static_cast<HttpRequestMessage *>(sendMsg));
             //--modified end
 
             //--add by wangqian, 2012-07-04
             // add msg log when send it
-//            logRequest(check_and_cast<RealHttpRequestMessage *>(sendMsg));
+//            logRequest(check_and_cast<HttpRequestMessage *>(sendMsg));
             //--add end
             sockdata->pending++;
         }
@@ -209,12 +223,12 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
                 //--modified by wangqian, 2012-10-16
                 // change message send method to adapt to the use of NSC
                 //socket->send(sendMsg);
-                sendMessage(socket, check_and_cast<RealHttpRequestMessage *>(sendMsg));
+                sendMessage(socket, static_cast<HttpRequestMessage *>(sendMsg));
                 //--modified end
 
                 //--add by wangqian, 2012-07-04
                 // add msg log when send it
-//                logRequest(check_and_cast<RealHttpRequestMessage *>(sendMsg));
+//                logRequest(check_and_cast<HttpRequestMessage *>(sendMsg));
                 //--add end
                 sockdata->pending++;
             }
@@ -230,12 +244,12 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
                 //--modified by wangqian, 2012-10-16
                 // change message send method to adapt to the use of NSC
                 //socket->send(sendMsg);
-                sendMessage(socket, check_and_cast<RealHttpRequestMessage *>(sendMsg));
+                sendMessage(socket, static_cast<HttpRequestMessage *>(sendMsg));
                 //--modified end
 
                 //--add by wangqian, 2012-07-04
                 // add msg log when send it
-//                logRequest(check_and_cast<RealHttpRequestMessage *>(sendMsg));
+//                logRequest(check_and_cast<HttpRequestMessage *>(sendMsg));
                 //--add end
                 sockdata->pending++;
             }
@@ -293,6 +307,7 @@ void NSCHttpBrowser::socketClosed(int connId, void *yourPtr)
 
     PipeSockData *sockdata = (PipeSockData*)yourPtr;
     TCPSocket *socket = sockdata->socket;
+
     sockCollection.removeSocket(socket);
     //--added by wangqian, 2012-05-16
     std::string svrName(sockdata->svrName);
@@ -327,16 +342,6 @@ void NSCHttpBrowser::socketFailure(int connId, void *yourPtr, int code)
     //--added end
     delete socket;
     delete sockdata;
-}
-
-
-void NSCHttpBrowser::submitToSocket(const char* moduleName, int connectPort, RealHttpRequestMessage *msg)
-{
-    // Create a queue and push the single message
-    HttpRequestQueue queue;
-    queue.push_back(msg);
-    // Call the overloaded version with the queue as parameter
-    submitToSocket(moduleName, connectPort, queue);
 }
 
 void NSCHttpBrowser::submitToSocket(const char* moduleName, int connectPort, HttpRequestQueue &queue)
@@ -377,11 +382,12 @@ void NSCHttpBrowser::submitToSocket(const char* moduleName, int connectPort, Htt
             sockCollectionMap[svrName].insert(socket);
 
             // Initialize the associated data structure
-            PipeSockData *sockdata = new PipeSockData;
+            PipeSockData *sockdata = new PipeSockData();
     //        sockdata->messageQueue = HttpRequestQueue(queue);
             sockdata->svrName.assign(moduleName);
             sockdata->socket = socket;
             sockdata->pending = 0;
+
             pSvrSupportDetect->initSvrSupportForSock(sockdata);
             socket->setCallbackObject(this, sockdata);
 
@@ -457,7 +463,7 @@ void NSCHttpBrowser::chooseStrategy(Pipelining_Mode_Type pipeliningMode, SvrSupp
 
 //--added by wangqian, 2012-10-16
 /** send HTTP requesst message though TCPSocket depends on the TCP DataTransferMode*/
-void NSCHttpBrowser::sendMessage(TCPSocket *socket, RealHttpRequestMessage* req)
+void NSCHttpBrowser::sendMessage(TCPSocket *socket, HttpRequestMessage *req)
 {
     long sendBytes = 0;
     cMessage *sendMsg = NULL;
@@ -473,11 +479,12 @@ void NSCHttpBrowser::sendMessage(TCPSocket *socket, RealHttpRequestMessage* req)
 
         case TCP_TRANSFER_BYTESTREAM:
         {
+            ByteArrayMessage *sendMsg = new ByteArrayMessage(req->getName());
+
             std::string resByteArray = formatByteRequestMessage(req);
 
             sendBytes = resByteArray.length();
 
-            ByteArrayMessage *sendMsg = new ByteArrayMessage("RealHttpRequestMessage");
             char *ptr = new char[sendBytes];
             strcpy(ptr, resByteArray.c_str());
             sendMsg->getByteArray().assignBuffer(ptr, sendBytes);
@@ -496,19 +503,46 @@ void NSCHttpBrowser::sendMessage(TCPSocket *socket, RealHttpRequestMessage* req)
  * Format an application TCP_TRANSFER_BYTESTREAM response message which can be sent though NSC TCP depence on the application layer protocol
  * the protocol type can be HTTP \ SPDY \ HTTPSM \ HTTPNF
  */
-std::string NSCHttpBrowser::formatByteRequestMessage(const RealHttpRequestMessage* httpRequest)
+std::string NSCHttpBrowser::formatByteRequestMessage(HttpRequestMessage *httpRequest)
 {
+    RealHttpRequestMessage *realHttpRequest;
+    realHttpRequest = new RealHttpRequestMessage();
+
+    realHttpRequest->setAccept("");
+    realHttpRequest->setAcceptCharset("");
+    realHttpRequest->setAcceptEncoding("");
+    realHttpRequest->setAcceptLanguage("");
+    realHttpRequest->setHost("");
+    realHttpRequest->setIfModifiedSince("");
+    realHttpRequest->setIfNoneMatch("");
+    realHttpRequest->setReferer("");
+    realHttpRequest->setUserAgent("");
+    realHttpRequest->setTargetUrl(httpRequest->targetUrl());
+    realHttpRequest->setProtocol(httpRequest->protocol());
+    realHttpRequest->setHeading(httpRequest->heading());
+    realHttpRequest->setSerial(httpRequest->serial());
+    realHttpRequest->setByteLength(httpRequest->getByteLength());
+    realHttpRequest->setKeepAlive(httpRequest->keepAlive());
+    realHttpRequest->setBadRequest(httpRequest->badRequest());
+    realHttpRequest->setKind(httpRequest->getKind());
+    realHttpRequest->setPayload(httpRequest->payload());
+
+    delete httpRequest;
+    httpRequest = NULL;
+
     switch(protocolType)
     {
         case HTTP:
-            return formatHttpRequestMessage(httpRequest);
+            return formatHttpRequestMessage(realHttpRequest);
         case SPDY:
-            return formatSpdyRequestMessage(httpRequest);
+            return formatSpdyRequestMessage(realHttpRequest);
         case HTTPSM:
-            return formatHttpSMRequestMessage(httpRequest);
+            return formatHttpSMRequestMessage(realHttpRequest);
         case HTTPNF:
-            return formatHttpNFRequestMessage(httpRequest);
+            return formatHttpNFRequestMessage(realHttpRequest);
         default:
+            delete realHttpRequest;
+            realHttpRequest = NULL;
             throw cRuntimeError("Invalid Application protocol: %d", protocolType);
     }
 }
@@ -522,7 +556,7 @@ std::string NSCHttpBrowser::formatByteRequestMessage(const RealHttpRequestMessag
                 CRLF
                 [ message-body ]
  */
-std::string NSCHttpBrowser::formatHttpRequestMessage(const RealHttpRequestMessage* httpRequest)
+std::string NSCHttpBrowser::formatHttpRequestMessage(const RealHttpRequestMessage *httpRequest)
 {
     std::ostringstream str;
 
@@ -533,26 +567,28 @@ std::string NSCHttpBrowser::formatHttpRequestMessage(const RealHttpRequestMessag
      * Request-Line   = Method SP Request-URI SP HTTP-Version CRLF
      */
 
-    /** 1.1 Method SP */
-    str << "GET ";
+//    /** 1.1 Method SP */
+//    str << "GET ";
+//
+//    /** 1.2 Request-URI SP */
+//    str << httpRequest->targetUrl() << " ";
+//
+//
+//    /** 1.3 HTTP-Version CRLF */
+//    switch (httpRequest->protocol())
+//    {
+//      case 10:
+//        str << "HTTP/1.0";
+//        break;
+//      case 11:
+//        str << "HTTP/1.1";
+//        break;
+//      default:
+//        throw cRuntimeError("Invalid HTTP Status code: %d", httpRequest->protocol());
+//        break;
+//    }
+    str << httpRequest->heading();
 
-    /** 1.2 Request-URI SP */
-    str << httpRequest->targetUrl() << " ";
-
-
-    /** 1.3 HTTP-Version CRLF */
-    switch (httpRequest->protocol())
-    {
-      case 10:
-        str << "HTTP/1.0";
-        break;
-      case 11:
-        str << "HTTP/1.1";
-        break;
-      default:
-        throw cRuntimeError("Invalid HTTP Status code: %d", httpRequest->protocol());
-        break;
-    }
     str << "\r\n";
 
 
@@ -1146,32 +1182,41 @@ std::string NSCHttpBrowser::formatHttpRequestMessage(const RealHttpRequestMessag
 
     /*************************************Finish generating HTTP Request Body*************************************/
 
-    return str.str();
-}
-
-/** Format a Request message to HTTP Request Message */
-std::string NSCHttpBrowser::formatSpdyRequestMessage(const RealHttpRequestMessage* httpRequest)
-{
-    std::ostringstream str;
-
+    delete httpRequest;
+    httpRequest = NULL;
 
     return str.str();
 }
 
 /** Format a Request message to HTTP Request Message */
-std::string NSCHttpBrowser::formatHttpSMRequestMessage(const RealHttpRequestMessage* httpRequest)
+std::string NSCHttpBrowser::formatSpdyRequestMessage(const RealHttpRequestMessage *httpRequest)
 {
     std::ostringstream str;
 
+    delete httpRequest;
+    httpRequest = NULL;
 
     return str.str();
 }
 
 /** Format a Request message to HTTP Request Message */
-std::string NSCHttpBrowser::formatHttpNFRequestMessage(const RealHttpRequestMessage* httpRequest)
+std::string NSCHttpBrowser::formatHttpSMRequestMessage(const RealHttpRequestMessage *httpRequest)
 {
     std::ostringstream str;
 
+    delete httpRequest;
+    httpRequest = NULL;
+
+    return str.str();
+}
+
+/** Format a Request message to HTTP Request Message */
+std::string NSCHttpBrowser::formatHttpNFRequestMessage(const RealHttpRequestMessage *httpRequest)
+{
+    std::ostringstream str;
+
+    delete httpRequest;
+    httpRequest = NULL;
 
     return str.str();
 }

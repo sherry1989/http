@@ -14,7 +14,7 @@
 // 
 
 #include "NSCHttpServer.h"
-
+#include "HttpRequestPraser.h"
 #include "ByteArrayMessage.h"
 
 Define_Module(NSCHttpServer);
@@ -96,14 +96,21 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
     }
     TCPSocket *socket = (TCPSocket*)yourPtr;
 
+    //--added by wangqian, 2012-10-17
+    HttpRequestPraser *praser = new HttpRequestPraser();
+
+    cPacket *prasedMsg = praser->praseHttpRequest(msg);
+
+    //--added end
+
     // Should be a HttpRequestMessage
-    EV_DEBUG << "Socket data arrived on connection " << connId << ". Message=" << msg->getName() << ", kind=" << msg->getKind() << endl;
+    EV_DEBUG << "Socket data arrived on connection " << connId << ". Message=" << prasedMsg->getName() << ", kind=" << prasedMsg->getKind() << endl;
 
     //--modified by wangqian, 2012-05-24
     // call the message handler to process the message.
     //--modified by wangqian, 2012-10-15
     // change from cMessage to RealRealHttpReplyMessage to record the return of handleReceivedMessage
-    RealHttpReplyMessage *reply = handleReceivedMessage(msg);
+    HttpReplyMessage *reply = handleReceivedMessage(prasedMsg);
     //--modified end
     if (reply!=NULL)
     {
@@ -148,7 +155,7 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
                 // there is earlier reply not send, record this reply
                 else
                 {
-                    //RealHttpReplyMessage *replyMsg = dynamic_cast<RealHttpReplyMessage*>(reply);
+                    //HttpReplyMessage *realhttpResponse = dynamic_cast<HttpReplyMessage*>(reply);
                     ReplyInfo replyInfo = {reply, true};
                     replyInfoPerSocket[socket].push_back(replyInfo);
                 }
@@ -156,7 +163,7 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
         }
         else
         {
-            //RealHttpReplyMessage *replyMsg = dynamic_cast<RealHttpReplyMessage*>(reply);
+            //HttpReplyMessage *realhttpResponse = dynamic_cast<HttpReplyMessage*>(reply);
             ReplyInfo replyInfo = {reply, false};
             if (replyInfoPerSocket.find(socket) == replyInfoPerSocket.end())
             {
@@ -174,7 +181,7 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
             scheduleAt(simTime()+replyDelay, reply);
         }
     }
-    delete msg; // Delete the received message here. Must not be deleted in the handler!
+    delete prasedMsg; // Delete the received message here. Must not be deleted in the handler!
 }
 
 void NSCHttpServer::handleSelfMessages(cMessage *msg)
@@ -190,7 +197,7 @@ void NSCHttpServer::handleSelfMessages(cMessage *msg)
 void NSCHttpServer::handleSelfDelayedReplyMessage(cMessage *msg)
 {
     EV_DEBUG << "Need to send delayed message " << msg->getName() << " @ T=" << simTime() << endl;
-    RealHttpReplyMessage* reply = dynamic_cast<RealHttpReplyMessage*>(msg);
+    HttpReplyMessage *reply = dynamic_cast<HttpReplyMessage*>(msg);
     reply->setKind(HTTPT_RESPONSE_MESSAGE);
 
     TCPSocket *socket = NULL;
@@ -244,10 +251,11 @@ void NSCHttpServer::handleSelfDelayedReplyMessage(cMessage *msg)
                 // change message send method to adapt to the use of NSC
                 //msg = dynamic_cast<cMessage*>(reply);
                 //socket->send(msg); // Send to socket if the reply is non-zero.
+
+                EV_INFO << "Send message =" << reply->getName() << ", kind=" << reply->getKind()<< endl;
                 sendMessage(socket, reply);
                 //--modified end
 
-                EV_INFO << "Send message =" << msg->getName() << ", kind=" << msg->getKind()<< endl;
                 replyInfoPerSocket[socket].pop_front();
 
                 while (!replyInfoPerSocket[socket].empty())
@@ -321,7 +329,7 @@ void NSCHttpServer::handleMessage(cMessage *msg)
  * Handle a received data message, e.g. check if the content requested exists.
  * change the HttpServerBase::handleReceivedMessage return type from cMessage to HttpReplyMessage to record the return of handleReceivedMessage
  */
-RealHttpReplyMessage* NSCHttpServer::handleReceivedMessage(cMessage *msg)
+HttpReplyMessage* NSCHttpServer::handleReceivedMessage(cMessage *msg)
 {
     HttpRequestMessage *request = check_and_cast<HttpRequestMessage *>(msg);
     if (request==NULL)
@@ -338,7 +346,7 @@ RealHttpReplyMessage* NSCHttpServer::handleReceivedMessage(cMessage *msg)
         return NULL;
     }
 
-    RealHttpReplyMessage* replymsg;
+    HttpReplyMessage *httpResponse;
 
     // Parse the request string on spaces
     cStringTokenizer tokenizer = cStringTokenizer(request->heading(), " ");
@@ -346,36 +354,36 @@ RealHttpReplyMessage* NSCHttpServer::handleReceivedMessage(cMessage *msg)
     if (res.size() != 3)
     {
         EV_ERROR << "Invalid request string: " << request->heading() << endl;
-        replymsg = dynamic_cast<RealHttpReplyMessage*>(generateErrorReply(request, 400));
-        logResponse(replymsg);
-        return replymsg;
+        httpResponse = generateErrorReply(request, 400);
+        logResponse(httpResponse);
+        return httpResponse;
     }
 
     if (request->badRequest())
     {
         // Bad requests get a 404 reply.
         EV_ERROR << "Bad request - bad flag set. Message: " << request->getName() << endl;
-        replymsg = dynamic_cast<RealHttpReplyMessage*>(generateErrorReply(request, 404));
+        httpResponse = generateErrorReply(request, 404);
     }
     else if (res[0] == "GET")
     {
-        replymsg = dynamic_cast<RealHttpReplyMessage*>(handleGetRequest(request, res[1])); // Pass in the resource string part
+        httpResponse = handleGetRequest(request, res[1]); // Pass in the resource string part
     }
     else
     {
         EV_ERROR << "Unsupported request type " << res[0] << " for " << request->heading() << endl;
-        replymsg = dynamic_cast<RealHttpReplyMessage*>(generateErrorReply(request, 400));
+        httpResponse = generateErrorReply(request, 400);
     }
 
-    if (replymsg!=NULL)
-        logResponse(replymsg);
+    if (httpResponse!=NULL)
+        logResponse(httpResponse);
 
-    return replymsg;
+    return httpResponse;
 }
 
 
 /** send HTTP reply message though TCPSocket depends on the TCP DataTransferMode*/
-void NSCHttpServer::sendMessage(TCPSocket *socket, RealHttpReplyMessage* reply)
+void NSCHttpServer::sendMessage(TCPSocket *socket, HttpReplyMessage *reply)
 {
     long sendBytes = 0;
     cMessage *sendMsg = NULL;
@@ -391,15 +399,19 @@ void NSCHttpServer::sendMessage(TCPSocket *socket, RealHttpReplyMessage* reply)
 
         case TCP_TRANSFER_BYTESTREAM:
         {
+            ByteArrayMessage *sendMsg = new ByteArrayMessage(reply->getName());
+
             std::string resByteArray = formatByteResponseMessage(reply);
 
             sendBytes = resByteArray.length();
 
-            ByteArrayMessage *sendMsg = new ByteArrayMessage("RealHttpReplyMessage");
             char *ptr = new char[sendBytes];
-            strcpy(ptr, resByteArray.c_str());
+            strncpy(ptr, resByteArray.c_str(), sendBytes);
             sendMsg->getByteArray().assignBuffer(ptr, sendBytes);
             sendMsg->setByteLength(sendBytes);
+
+            EV_DEBUG << "Send ByteArray. SendBytes are" << resByteArray << ". " << endl;
+            EV_DEBUG << "Send ByteArray. Bytelength is" << sendBytes << ". " << endl;
 
             socket->send(sendMsg);
             break;
@@ -414,19 +426,57 @@ void NSCHttpServer::sendMessage(TCPSocket *socket, RealHttpReplyMessage* reply)
  * Format an application TCP_TRANSFER_BYTESTREAM response message which can be sent though NSC TCP depence on the application layer protocol
  * the protocol type can be HTTP \ SPDY \ HTTPSM \ HTTPNF
  */
-std::string NSCHttpServer::formatByteResponseMessage(const RealHttpReplyMessage* httpResponse)
+std::string NSCHttpServer::formatByteResponseMessage(HttpReplyMessage *httpResponse)
 {
+    RealHttpReplyMessage *realhttpResponse;
+    realhttpResponse = new RealHttpReplyMessage();
+
+    realhttpResponse->setAcceptRanges("none");
+    realhttpResponse->setAge(0);
+    realhttpResponse->setCacheControl("");
+    realhttpResponse->setContentEncoding("");
+    realhttpResponse->setContentLanguage("");
+    realhttpResponse->setContentLength(0);
+    realhttpResponse->setContentLocation("");
+    realhttpResponse->setDate("");
+    realhttpResponse->setEtag("");
+    realhttpResponse->setExpires("");
+    realhttpResponse->setLastModified("");
+    realhttpResponse->setLocation("");
+    realhttpResponse->setPragma("");
+    realhttpResponse->setServer("");
+    realhttpResponse->setTransferEncoding("");
+    realhttpResponse->setVary("");
+    realhttpResponse->setVia("");
+    realhttpResponse->setXPoweredBy("");
+
+    realhttpResponse->setHeading(httpResponse->heading());
+    realhttpResponse->setOriginatorUrl(httpResponse->originatorUrl());
+    realhttpResponse->setTargetUrl(httpResponse->targetUrl());
+    realhttpResponse->setProtocol(httpResponse->protocol());
+    realhttpResponse->setSerial(httpResponse->serial());
+    realhttpResponse->setResult(httpResponse->result());
+    realhttpResponse->setContentType(httpResponse->contentType()); // Emulates the content-type header field
+    realhttpResponse->setKind(httpResponse->getKind());
+    realhttpResponse->setPayload(httpResponse->payload());
+    realhttpResponse->setContentLength(httpResponse->getByteLength());
+
+    delete httpResponse;
+    httpResponse = NULL;
+
     switch(protocolType)
     {
         case HTTP:
-            return formatHttpResponseMessage(httpResponse);
+            return formatHttpResponseMessage(realhttpResponse);
         case SPDY:
-            return formatSpdyResponseMessage(httpResponse);
+            return formatSpdyResponseMessage(realhttpResponse);
         case HTTPSM:
-            return formatHttpSMResponseMessage(httpResponse);
+            return formatHttpSMResponseMessage(realhttpResponse);
         case HTTPNF:
-            return formatHttpNFResponseMessage(httpResponse);
+            return formatHttpNFResponseMessage(realhttpResponse);
         default:
+            delete realhttpResponse;
+            realhttpResponse = NULL;
             throw cRuntimeError("Invalid Application protocol: %d", protocolType);
     }
 }
@@ -440,7 +490,7 @@ std::string NSCHttpServer::formatByteResponseMessage(const RealHttpReplyMessage*
                 CRLF
                 [ message-body ]
  */
-std::string NSCHttpServer::formatHttpResponseMessage(const RealHttpReplyMessage* httpResponse)
+std::string NSCHttpServer::formatHttpResponseMessage(const RealHttpReplyMessage *httpResponse)
 {
     std::ostringstream str;
 
@@ -859,6 +909,7 @@ std::string NSCHttpServer::formatHttpResponseMessage(const RealHttpReplyMessage*
      * Content-Length    = "Content-Length" ":" 1*DIGIT
      */
     str << "Content-Length: " << httpResponse->contentLength() << "\r\n";
+    EV_DEBUG << "Generate HTTP Content-Length: "<< httpResponse->contentLength()<< endl;
 
     /** 4.5 Content-Location */
     /*
@@ -874,7 +925,8 @@ std::string NSCHttpServer::formatHttpResponseMessage(const RealHttpReplyMessage*
     }
     else
     {
-      //if the Content-Location not set, don't send it
+        //if the Content-Location not set, use the originatorUrl instead
+        str << "Content-Location: "<< httpResponse->originatorUrl() << "\r\n";
     }
 
     /** 4.6 Content-MD5 */
@@ -913,20 +965,23 @@ std::string NSCHttpServer::formatHttpResponseMessage(const RealHttpReplyMessage*
      * Any HTTP/1.1 message containing an entity-body SHOULD include a
        Content-Type header field defining the media type of that body.
      */
-    switch (httpResponse->contentType())
+    if (httpResponse->result() == 200)
     {
-      case CT_HTML:
-        str << "Content-Type: text/html\r\n";
-        break;
-      case CT_TEXT:
-        str << "Content-Type: application/javascript\r\n";
-        break;
-      case CT_IMAGE:
-        str << "Content-Type: image/jpeg\r\n";
-        break;
-      default:
-        throw cRuntimeError("Invalid HTTP Content Type: %d", httpResponse->contentType());
-        break;
+        switch (httpResponse->contentType())
+        {
+          case CT_HTML:
+            str << "Content-Type: text/html\r\n";
+            break;
+          case CT_TEXT:
+            str << "Content-Type: application/javascript\r\n";
+            break;
+          case CT_IMAGE:
+            str << "Content-Type: image/jpeg\r\n";
+            break;
+          default:
+            throw cRuntimeError("Invalid HTTP Content Type: %d", httpResponse->contentType());
+            break;
+        }
     }
 
     /** 4.9 Expires */
@@ -967,38 +1022,49 @@ std::string NSCHttpServer::formatHttpResponseMessage(const RealHttpReplyMessage*
 
     /*************************************Generate HTTP Response Body*************************************/
 
-    str << httpResponse->payload();
+
+    EV_DEBUG << "Generate HTTP Response Body:"<< httpResponse->payload()<< endl;
+//    str << httpResponse->payload();
+    std::string byteMessage = str.str();
+    byteMessage.append(httpResponse->payload(), httpResponse->contentLength());
 
     /*************************************Finish generating HTTP Response Body*************************************/
 
-    return str.str();
+    delete httpResponse;
+    httpResponse = NULL;
+
+    return byteMessage;
 }
 
 /** Format a response message to HTTP Response Message */
-std::string NSCHttpServer::formatSpdyResponseMessage(const RealHttpReplyMessage* httpResponse)
+std::string NSCHttpServer::formatSpdyResponseMessage(const RealHttpReplyMessage *httpResponse)
 {
     std::ostringstream str;
 
-
-    return str.str();
-}
-
-/** Format a response message to HTTP Response Message */
-std::string NSCHttpServer::formatHttpSMResponseMessage(const RealHttpReplyMessage* httpResponse)
-{
-    std::ostringstream str;
-
-
+    delete httpResponse;
+    httpResponse = NULL;
 
     return str.str();
 }
 
 /** Format a response message to HTTP Response Message */
-std::string NSCHttpServer::formatHttpNFResponseMessage(const RealHttpReplyMessage* httpResponse)
+std::string NSCHttpServer::formatHttpSMResponseMessage(const RealHttpReplyMessage *httpResponse)
 {
     std::ostringstream str;
 
+    delete httpResponse;
+    httpResponse = NULL;
 
+    return str.str();
+}
+
+/** Format a response message to HTTP Response Message */
+std::string NSCHttpServer::formatHttpNFResponseMessage(const RealHttpReplyMessage *httpResponse)
+{
+    std::ostringstream str;
+
+    delete httpResponse;
+    httpResponse = NULL;
 
     return str.str();
 }
