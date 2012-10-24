@@ -269,7 +269,7 @@ void NSCHttpServer::handleSelfDelayedReplyMessage(cMessage *msg)
                         sendMessage(socket, replyInfoPerSocket[socket].front().reply);
                         //--modified end
 
-                        EV_INFO << "Send message =" << msg->getName() << ", kind=" << msg->getKind()<< endl;
+//                        EV_INFO << "Send message =" << replyInfoPerSocket[socket].front().reply->getName() << ", kind=" << replyInfoPerSocket[socket].front().reply->getKind()<< endl;
                         replyInfoPerSocket[socket].pop_front();
                     }
                     else
