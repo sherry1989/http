@@ -63,9 +63,18 @@ namespace ResponsePraser
         HttpResponsePraser *parser;
         parser = reinterpret_cast<HttpResponsePraser*>(htp->data);
 
-        std::string payload;
-        payload.assign(buf, parser->httpResponse->getByteLength());
-        parser->httpResponse->setPayload(payload.c_str());
+//        std::string payload;
+//        if (len != 0)
+//        {
+//            payload.assign(buf, len);
+//        }
+//        parser->httpResponse->setPayload(payload.c_str());
+        parser->httpResponse->setPayload(buf);
+        parser->set_recv_body_length(len);
+
+        EV << "payload strlen is:" << strlen(parser->httpResponse->payload()) << endl;
+        EV << "buffer len is :" << len << endl;
+        EV << "httpResponse bytelength is: " << parser->httpResponse->getByteLength() << endl;
 
 //        parser->httpResponse->setPayload(buf);
 //        parser->httpResponse->setContentLength(len);
@@ -98,24 +107,27 @@ namespace ResponsePraser
         /*
          * set contentType of this http response message
          */
-        std::string contentType;
-        contentType.assign(parser->getResponseHeader("Content-Type"));
+        if (parser->httpResponse->result() == 200)
+        {
+            std::string contentType;
+            contentType.assign(parser->getResponseHeader("Content-Type"));
 
-        if (strcmp(contentType.c_str(), "text/html") == 0)
-        {
-            parser->httpResponse->setContentType(CT_HTML);
-        }
-        else if (strcmp(contentType.c_str(), "application/javascript") == 0)
-        {
-            parser->httpResponse->setContentType(CT_TEXT);
-        }
-        else if (strcmp(contentType.c_str(), "image/jpeg") == 0)
-        {
-            parser->httpResponse->setContentType(CT_IMAGE);
-        }
-        else
-        {
-            throw cRuntimeError("Invalid HTTP Content Type");
+            if (strcmp(contentType.c_str(), "text/html") == 0)
+            {
+                parser->httpResponse->setContentType(CT_HTML);
+            }
+            else if (strcmp(contentType.c_str(), "application/javascript") == 0)
+            {
+                parser->httpResponse->setContentType(CT_TEXT);
+            }
+            else if (strcmp(contentType.c_str(), "image/jpeg") == 0)
+            {
+                parser->httpResponse->setContentType(CT_IMAGE);
+            }
+            else
+            {
+                throw cRuntimeError("Invalid HTTP Content Type");
+            }
         }
 
         /*
@@ -169,7 +181,8 @@ HttpResponsePraser::HttpResponsePraser()
  chunked_response_(false),
  response_header_key_prev_(false),
  pResponseParser(new http_parser()),
- recv_window_size_(0)
+ recv_window_size_(0),
+ recv_body_length(0)
 {
     // TODO Auto-generated constructor stub
     http_parser_init(pResponseParser, HTTP_RESPONSE);
@@ -193,29 +206,67 @@ RealHttpReplyMessage* HttpResponsePraser::praseHttpResponse(cPacket *msg)
     EV << "HTTP Response to parse ByteLength is:" << bufLength << endl;
     EV << "HTTP Response to parse ByteArray is:" << buf << endl;
 
-    httpResponse->setName(msg->getName());
-    httpResponse->setSentFrom(msg->getSenderModule(), msg->getSenderGateId(), msg->getSendingTime());
+    //--modified by wangqian, 2012-10-23
+    /*
+     * check if this response message contains message header
+     *      if it contains message header, it's a start of response message, then try to parse it and check if it's a complete message
+     *          if it's a complete message, return the httpResponse object
+     *          else, wait for the coming messages contain the else message body
+     *      else, it's a message contains the else message body of the message received earlier
+     */
+    if (strstr(buf, "\r\n\r\n") != NULL)
+    {
+        httpResponse->setName(msg->getName());
+        httpResponse->setSentFrom(msg->getSenderModule(), msg->getSenderGateId(), msg->getSendingTime());
 
-    /*size_t nread = */http_parser_execute(pResponseParser, &ResponsePraser::parserCallback, const_cast<const char*>(buf), bufLength);
-//
-//    evbuffer_drain(input, nread);
-//    http_errno htperr = HTTP_PARSER_ERRNO(response_htp_);
-//    if (htperr == HPE_OK)
-//    {
-//        return 0;
-//    }
-//    else
-//    {
-//        if (ENABLE_LOG)
-//        {
-//            LOG(INFO) << "Downstream HTTP parser failure: " << "(" << http_errno_name(htperr) << ") "
-//                    << http_errno_description(htperr);
-//        }
-//        return SHRPX_ERR_HTTP_PARSE;
-//    }
+        /*size_t nread = */http_parser_execute(pResponseParser, &ResponsePraser::parserCallback, const_cast<const char*>(buf), bufLength);
+    //
+    //    evbuffer_drain(input, nread);
+    //    http_errno htperr = HTTP_PARSER_ERRNO(response_htp_);
+    //    if (htperr == HPE_OK)
+    //    {
+    //        return 0;
+    //    }
+    //    else
+    //    {
+    //        if (ENABLE_LOG)
+    //        {
+    //            LOG(INFO) << "Downstream HTTP parser failure: " << "(" << http_errno_name(htperr) << ") "
+    //                    << http_errno_description(htperr);
+    //        }
+    //        return SHRPX_ERR_HTTP_PARSE;
+    //    }
+
+    }
+    else
+    {
+        std::string payload;
+        payload.assign(httpResponse->payload());
+        payload.append(buf, bufLength);
+        httpResponse->setPayload(payload.c_str());
+
+        recv_body_length += bufLength;
+
+//        EV << "payload add is: " << buf << endl;
+    }
+
+//    EV << "payload now is:" << httpResponse->payload() << endl;
+//    EV << "payload length now is :" << recv_body_length << endl;
+//    EV << "httpResponse bytelength is: " << httpResponse->getByteLength() << endl;
+
 
     delete msg;
-    return httpResponse;
+
+    if (httpResponse->getByteLength() <= recv_body_length)
+    {
+        recv_body_length = 0;
+        return httpResponse;
+    }
+    else
+    {
+        return NULL;
+    }
+    //--modified end
 }
 
 void HttpResponsePraser::add_response_header(const std::string& name, const std::string& value)
@@ -319,4 +370,14 @@ void HttpResponsePraser::check_transfer_encoding_chunked(bool *chunked, const He
 bool HttpResponsePraser::get_chunked_response() const
 {
     return chunked_response_;
+}
+
+void HttpResponsePraser::set_recv_body_length(int64 length)
+{
+    recv_body_length = length;
+}
+
+int64 HttpResponsePraser::get_recv_body_length() const
+{
+    return recv_body_length;
 }

@@ -23,6 +23,12 @@
 
 #include <stdexcept>
 
+//redefine PipeSockData as NSCSockData
+struct NSCSockData :public PipeSockData
+{
+    HttpResponsePraser *praser;
+};
+
 Define_Module(NSCHttpBrowser);
 
 NSCHttpBrowser::NSCHttpBrowser()
@@ -93,7 +99,7 @@ void NSCHttpBrowser::socketEstablished(int connId, void *yourPtr)
     }
 
     // Get the socket and associated data structure.
-    PipeSockData *sockdata = (PipeSockData*)yourPtr;
+    NSCSockData *sockdata = (NSCSockData*)yourPtr;
     TCPSocket *socket = sockdata->socket;
     //--modified by wangqian, 2012-05-15
     std::string svrName(sockdata->svrName);
@@ -155,91 +161,56 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
         return;
     }
 
-    PipeSockData *sockdata = (PipeSockData*)yourPtr;
+    NSCSockData *sockdata = (NSCSockData*)yourPtr;
     TCPSocket *socket = sockdata->socket;
 
     //--added by wangqian, 2012-10-17
-    HttpResponsePraser *praser = new HttpResponsePraser();
 
-    cPacket *prasedMsg = praser->praseHttpResponse(msg);
-
-    //--added end
-
-    HttpContentType contentType = pSvrSupportDetect->setSvrSupportForSock(sockdata, prasedMsg);
-
-    handleDataMessage(prasedMsg);
-
-    //--added by wangqian, 2012-10-17
-    delete praser;
-    //--added end
-
-    //--added by wangqian, 2012-05-15
-    --sockdata->pending;
-
-    std::string svrName(sockdata->svrName);
-    cMessage *sendMsg;
-
-    //--modified by wangqian, 2012-05-16
-    /*
-     * if received the response for html, send a single request directly
-     */
-    if (contentType == CT_HTML)
+    //--modified by wangqian, 2012-10-23
+    if (sockdata->praser == NULL)
     {
-        if (!pPipeReq->isEmpty(svrName, socket))
-        {
-            sendMsg = pPipeReq->getMsg(svrName, socket);
-            cPacket *pckt = check_and_cast<cPacket *>(sendMsg);
-            EV_INFO << "Submitting request first use html connection " << sendMsg->getName() << " to socket " << connId << ". size is " << pckt->getByteLength() << " bytes" << endl;
-
-            //--modified by wangqian, 2012-10-16
-            // change message send method to adapt to the use of NSC
-            //socket->send(sendMsg);
-            sendMessage(socket, static_cast<HttpRequestMessage *>(sendMsg));
-            //--modified end
-
-            //--add by wangqian, 2012-07-04
-            // add msg log when send it
-//            logRequest(check_and_cast<HttpRequestMessage *>(sendMsg));
-            //--add end
-            sockdata->pending++;
-        }
+        sockdata->praser = new HttpResponsePraser();
     }
+    //--modified end
+
+    cPacket *prasedMsg = sockdata->praser->praseHttpResponse(msg);
+
+    //--added end
+
+    //--modified by wangqian, 2012-10-23
     /*
-     * otherwise send requests depends on the server supporting
+     * check if this response message is complete
+     *      if it's a complete message, handle it
+     *      else, wait for the coming messages contain the else message body, do nothing
      */
-    else
+    if (prasedMsg != NULL)
     {
+        HttpContentType contentType = pSvrSupportDetect->setSvrSupportForSock(sockdata, prasedMsg);
+
+        handleDataMessage(prasedMsg);
+
+        //--added by wangqian, 2012-10-17
+        delete sockdata->praser;
+        //--added end
+        sockdata->praser = NULL;
+
+        //--added by wangqian, 2012-05-15
+        --sockdata->pending;
+
+        std::string svrName(sockdata->svrName);
+        cMessage *sendMsg;
+
+        //--modified by wangqian, 2012-05-16
         /*
-         * if the server supports pipelining do it, else send single request
+         * if received the response for html, send a single request directly
          */
-        if (sockdata->svrSupport == e_Support)
-        {
-            while (!pPipeReq->isEmpty(svrName, socket) && sockdata->pending <= maxPipelinedReqs)
-            {
-                sendMsg = pPipeReq->getMsg(svrName, socket);
-                cPacket *pckt = check_and_cast<cPacket *>(sendMsg);
-                EV_INFO << "Submitting request pipelined " << sendMsg->getName() << " to socket " << connId << ". size is " << pckt->getByteLength() << " bytes" << endl;
-
-                //--modified by wangqian, 2012-10-16
-                // change message send method to adapt to the use of NSC
-                //socket->send(sendMsg);
-                sendMessage(socket, static_cast<HttpRequestMessage *>(sendMsg));
-                //--modified end
-
-                //--add by wangqian, 2012-07-04
-                // add msg log when send it
-//                logRequest(check_and_cast<HttpRequestMessage *>(sendMsg));
-                //--add end
-                sockdata->pending++;
-            }
-        }
-        else if (sockdata->svrSupport == e_NotSupport)
+        if (contentType == CT_HTML)
         {
             if (!pPipeReq->isEmpty(svrName, socket))
             {
                 sendMsg = pPipeReq->getMsg(svrName, socket);
                 cPacket *pckt = check_and_cast<cPacket *>(sendMsg);
-                EV_INFO << "Submitting request not pipelined " << sendMsg->getName() << " to socket " << connId << ". size is " << pckt->getByteLength() << " bytes" << endl;
+                EV_INFO << "Submitting request first use html connection " << sendMsg->getName() << " to socket " << connId << ". size is " << pckt->getByteLength() << " bytes" << endl;
 
                 //--modified by wangqian, 2012-10-16
                 // change message send method to adapt to the use of NSC
@@ -249,30 +220,85 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
 
                 //--add by wangqian, 2012-07-04
                 // add msg log when send it
-//                logRequest(check_and_cast<HttpRequestMessage *>(sendMsg));
+    //            logRequest(check_and_cast<HttpRequestMessage *>(sendMsg));
                 //--add end
                 sockdata->pending++;
             }
         }
+        /*
+         * otherwise send requests depends on the server supporting
+         */
         else
         {
-            EV_DEBUG << "Server supporting not recognised." << endl;
+            /*
+             * if the server supports pipelining do it, else send single request
+             */
+            if (sockdata->svrSupport == e_Support)
+            {
+                while (!pPipeReq->isEmpty(svrName, socket) && sockdata->pending <= maxPipelinedReqs)
+                {
+                    sendMsg = pPipeReq->getMsg(svrName, socket);
+                    cPacket *pckt = check_and_cast<cPacket *>(sendMsg);
+                    EV_INFO << "Submitting request pipelined " << sendMsg->getName() << " to socket " << connId << ". size is " << pckt->getByteLength() << " bytes" << endl;
+
+                    //--modified by wangqian, 2012-10-16
+                    // change message send method to adapt to the use of NSC
+                    //socket->send(sendMsg);
+                    sendMessage(socket, static_cast<HttpRequestMessage *>(sendMsg));
+                    //--modified end
+
+                    //--add by wangqian, 2012-07-04
+                    // add msg log when send it
+    //                logRequest(check_and_cast<HttpRequestMessage *>(sendMsg));
+                    //--add end
+                    sockdata->pending++;
+                }
+            }
+            else if (sockdata->svrSupport == e_NotSupport)
+            {
+                if (!pPipeReq->isEmpty(svrName, socket))
+                {
+                    sendMsg = pPipeReq->getMsg(svrName, socket);
+                    cPacket *pckt = check_and_cast<cPacket *>(sendMsg);
+                    EV_INFO << "Submitting request not pipelined " << sendMsg->getName() << " to socket " << connId << ". size is " << pckt->getByteLength() << " bytes" << endl;
+
+                    //--modified by wangqian, 2012-10-16
+                    // change message send method to adapt to the use of NSC
+                    //socket->send(sendMsg);
+                    sendMessage(socket, static_cast<HttpRequestMessage *>(sendMsg));
+                    //--modified end
+
+                    //--add by wangqian, 2012-07-04
+                    // add msg log when send it
+    //                logRequest(check_and_cast<HttpRequestMessage *>(sendMsg));
+                    //--add end
+                    sockdata->pending++;
+                }
+            }
+            else
+            {
+                EV_DEBUG << "Server supporting not recognised." << endl;
+            }
         }
+        //--modified end
+
+        //--added end
+
+        //--modified by wangqian, 2012-05-15
+    //    if (--sockdata->pending==0)
+        if (sockdata->pending == 0 && pPipeReq->isEmpty(svrName, socket))
+        {
+            EV_DEBUG << "Received last expected reply on this socket　and there is no resource need to request. Issing a close" << endl;
+            socket->close();
+        }
+        //--modified end
+
+        // Message deleted in handler - do not delete here!
     }
-    //--modified end
-
-    //--added end
-
-    //--modified by wangqian, 2012-05-15
-//    if (--sockdata->pending==0)
-    if (sockdata->pending == 0 && pPipeReq->isEmpty(svrName, socket))
+    else
     {
-        EV_DEBUG << "Received last expected reply on this socket　and there is no resource need to request. Issing a close" << endl;
-        socket->close();
-    }
-    //--modified end
 
-    // Message deleted in handler - do not delete here!
+    }
 }
 
 void NSCHttpBrowser::socketPeerClosed(int connId, void *yourPtr)
@@ -284,7 +310,7 @@ void NSCHttpBrowser::socketPeerClosed(int connId, void *yourPtr)
         return;
     }
 
-    PipeSockData *sockdata = (PipeSockData*)yourPtr;
+    NSCSockData *sockdata = (NSCSockData*)yourPtr;
     TCPSocket *socket = sockdata->socket;
 
     // close the connection (if not already closed)
@@ -305,7 +331,7 @@ void NSCHttpBrowser::socketClosed(int connId, void *yourPtr)
         return;
     }
 
-    PipeSockData *sockdata = (PipeSockData*)yourPtr;
+    NSCSockData *sockdata = (NSCSockData*)yourPtr;
     TCPSocket *socket = sockdata->socket;
 
     sockCollection.removeSocket(socket);
@@ -333,7 +359,7 @@ void NSCHttpBrowser::socketFailure(int connId, void *yourPtr, int code)
     else if (code==TCP_I_CONNECTION_REFUSED)
         EV_WARNING << "Connection refused!\n";
 
-    PipeSockData *sockdata = (PipeSockData*)yourPtr;
+    NSCSockData *sockdata = (NSCSockData*)yourPtr;
     TCPSocket *socket = sockdata->socket;
     sockCollection.removeSocket(socket);
     //--added by wangqian, 2012-05-16
@@ -382,11 +408,14 @@ void NSCHttpBrowser::submitToSocket(const char* moduleName, int connectPort, Htt
             sockCollectionMap[svrName].insert(socket);
 
             // Initialize the associated data structure
-            PipeSockData *sockdata = new PipeSockData();
+            NSCSockData *sockdata = new NSCSockData();
     //        sockdata->messageQueue = HttpRequestQueue(queue);
             sockdata->svrName.assign(moduleName);
             sockdata->socket = socket;
             sockdata->pending = 0;
+            //--added by wangqian, 2012-10-23
+            sockdata->praser = NULL;
+            //--added end
 
             pSvrSupportDetect->initSvrSupportForSock(sockdata);
             socket->setCallbackObject(this, sockdata);

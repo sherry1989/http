@@ -66,6 +66,10 @@ class HttpResponsePraser
 
         std::string getResponseHeader(const char *name);
 
+        void set_recv_body_length(int64 length);
+
+        int64 get_recv_body_length() const;
+
         RealHttpReplyMessage* httpResponse;
 
         enum {
@@ -90,6 +94,7 @@ class HttpResponsePraser
         // body. Spdylay reads data from this in the callback.
 //        evbuffer *response_body_buf_;
         int32_t recv_window_size_;
+        int64 recv_body_length;
 };
 
 namespace ResponsePraser
