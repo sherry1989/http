@@ -136,15 +136,9 @@ void NSCHttpBrowser::socketEstablished(int connId, void *yourPtr)
         //--modified by wangqian, 2012-10-16
         // change message send method to adapt to the use of NSC
         //socket->send(msg);
-        sendMessage(socket, static_cast<HttpRequestMessage *>(msg));
+        sendMessage(socket, check_and_cast<HttpRequestMessage *>(msg));
         //--modified end
 
-        //--add by wangqian, 2012-07-04
-        // add msg log when send it
-        //static_cast<const HttpRequestMessage *>(msg)
-//        const RealHttpRequestMessage* httpRequest;
-//        logRequest(httpRequest);
-        //--add end
         sockdata->pending++;
     }
     //--modified end
@@ -215,13 +209,9 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
                 //--modified by wangqian, 2012-10-16
                 // change message send method to adapt to the use of NSC
                 //socket->send(sendMsg);
-                sendMessage(socket, static_cast<HttpRequestMessage *>(sendMsg));
+                sendMessage(socket, check_and_cast<HttpRequestMessage *>(sendMsg));
                 //--modified end
 
-                //--add by wangqian, 2012-07-04
-                // add msg log when send it
-    //            logRequest(check_and_cast<HttpRequestMessage *>(sendMsg));
-                //--add end
                 sockdata->pending++;
             }
         }
@@ -244,13 +234,9 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
                     //--modified by wangqian, 2012-10-16
                     // change message send method to adapt to the use of NSC
                     //socket->send(sendMsg);
-                    sendMessage(socket, static_cast<HttpRequestMessage *>(sendMsg));
+                    sendMessage(socket, check_and_cast<HttpRequestMessage *>(sendMsg));
                     //--modified end
 
-                    //--add by wangqian, 2012-07-04
-                    // add msg log when send it
-    //                logRequest(check_and_cast<HttpRequestMessage *>(sendMsg));
-                    //--add end
                     sockdata->pending++;
                 }
             }
@@ -265,13 +251,9 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
                     //--modified by wangqian, 2012-10-16
                     // change message send method to adapt to the use of NSC
                     //socket->send(sendMsg);
-                    sendMessage(socket, static_cast<HttpRequestMessage *>(sendMsg));
+                    sendMessage(socket, check_and_cast<HttpRequestMessage *>(sendMsg));
                     //--modified end
 
-                    //--add by wangqian, 2012-07-04
-                    // add msg log when send it
-    //                logRequest(check_and_cast<HttpRequestMessage *>(sendMsg));
-                    //--add end
                     sockdata->pending++;
                 }
             }
@@ -496,6 +478,12 @@ void NSCHttpBrowser::sendMessage(TCPSocket *socket, HttpRequestMessage *req)
 {
     long sendBytes = 0;
     cMessage *sendMsg = NULL;
+
+    //--add by wangqian, 2012-07-04
+    // add msg log when send it
+    logRequest(req);
+    //--add end
+
     switch (socket->getDataTransferMode())
     {
         case TCP_TRANSFER_BYTECOUNT:
@@ -508,17 +496,19 @@ void NSCHttpBrowser::sendMessage(TCPSocket *socket, HttpRequestMessage *req)
 
         case TCP_TRANSFER_BYTESTREAM:
         {
-            ByteArrayMessage *sendMsg = new ByteArrayMessage(req->getName());
+            ByteArrayMessage *byMsg = new ByteArrayMessage(req->getName());
 
             std::string resByteArray = formatByteRequestMessage(req);
 
-            sendBytes = resByteArray.length();
+            sendBytes = resByteArray.length() + 1;
 
             char *ptr = new char[sendBytes];
+            ptr[0] = '\0';
             strcpy(ptr, resByteArray.c_str());
-            sendMsg->getByteArray().assignBuffer(ptr, sendBytes);
-            sendMsg->setByteLength(sendBytes);
+            byMsg->getByteArray().assignBuffer(ptr, sendBytes);
+            byMsg->setByteLength(sendBytes);
 
+            sendMsg = dynamic_cast<cMessage*>(byMsg);
             socket->send(sendMsg);
             break;
         }

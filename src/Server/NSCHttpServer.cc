@@ -386,7 +386,9 @@ HttpReplyMessage* NSCHttpServer::handleReceivedMessage(cMessage *msg)
 void NSCHttpServer::sendMessage(TCPSocket *socket, HttpReplyMessage *reply)
 {
     long sendBytes = 0;
+
     cMessage *sendMsg = NULL;
+
     switch (socket->getDataTransferMode())
     {
         case TCP_TRANSFER_BYTECOUNT:
@@ -399,20 +401,22 @@ void NSCHttpServer::sendMessage(TCPSocket *socket, HttpReplyMessage *reply)
 
         case TCP_TRANSFER_BYTESTREAM:
         {
-            ByteArrayMessage *sendMsg = new ByteArrayMessage(reply->getName());
+            ByteArrayMessage *byMsg = new ByteArrayMessage(reply->getName());
 
             std::string resByteArray = formatByteResponseMessage(reply);
 
-            sendBytes = resByteArray.length();
+            sendBytes = resByteArray.length() + 1;
 
             char *ptr = new char[sendBytes];
+            ptr[0] = '\0';
             strncpy(ptr, resByteArray.c_str(), sendBytes);
-            sendMsg->getByteArray().assignBuffer(ptr, sendBytes);
-            sendMsg->setByteLength(sendBytes);
+            byMsg->getByteArray().assignBuffer(ptr, sendBytes);
+            byMsg->setByteLength(sendBytes);
 
             EV_DEBUG << "Send ByteArray. SendBytes are" << resByteArray << ". " << endl;
             EV_DEBUG << "Send ByteArray. Bytelength is" << sendBytes << ". " << endl;
 
+            sendMsg = dynamic_cast<cMessage*>(byMsg);
             socket->send(sendMsg);
             break;
         }
