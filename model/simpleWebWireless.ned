@@ -15,8 +15,10 @@ import inet.world.radio.ChannelControl;
 import inet.mobility.models.StationaryMobility;
 import inet.world.httptools.HttpController;
 import http.src.Browser.PipeHttpBrowser;
+import http.src.Browser.NSCHttpBrowser;
 import inet.applications.httptools.HttpBrowser;
 import http.src.Server.PipeHttpServer;
+import http.src.Server.NSCHttpServer;
 import inet.applications.httptools.HttpServer;
 
 network simpleWebWireless

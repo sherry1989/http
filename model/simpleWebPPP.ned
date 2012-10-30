@@ -11,8 +11,10 @@ import inet.nodes.inet.Router;
 import inet.nodes.inet.StandardHost;
 import inet.world.httptools.HttpController;
 import http.src.Browser.PipeHttpBrowser;
+import http.src.Browser.NSCHttpBrowser;
 import inet.applications.httptools.HttpBrowser;
 import http.src.Server.PipeHttpServer;
+import http.src.Server.NSCHttpServer;
 import inet.applications.httptools.HttpServer;
 
 network simpleWebPPP
