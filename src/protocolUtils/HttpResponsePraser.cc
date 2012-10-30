@@ -63,13 +63,13 @@ namespace ResponsePraser
         HttpResponsePraser *parser;
         parser = reinterpret_cast<HttpResponsePraser*>(htp->data);
 
-//        std::string payload;
-//        if (len != 0)
-//        {
-//            payload.assign(buf, len);
-//        }
-//        parser->httpResponse->setPayload(payload.c_str());
-        parser->httpResponse->setPayload(buf);
+        std::string payload;
+        if (len != 0)
+        {
+            payload.assign(buf, len);
+        }
+        parser->httpResponse->setPayload(payload.c_str());
+//        parser->httpResponse->setPayload(buf);
         parser->set_recv_body_length(len);
 
         EV << "payload strlen is:" << strlen(parser->httpResponse->payload()) << endl;
@@ -103,6 +103,8 @@ namespace ResponsePraser
         parser->set_response_minor(htp->http_minor);
         parser->httpResponse->setKeepAlive(http_should_keep_alive(htp));
         parser->set_response_state(parser->HEADER_COMPLETE);
+
+        EV << "Parsing HTTP Response Status code is:"<< parser->httpResponse->result() << endl;
 
         /*
          * set contentType of this http response message
@@ -216,6 +218,7 @@ RealHttpReplyMessage* HttpResponsePraser::praseHttpResponse(cPacket *msg)
      */
     if (strstr(buf, "\r\n\r\n") != NULL)
     {
+        EV << "Start parse a new http response. message name is " << msg->getName() << endl;
         httpResponse->setName(msg->getName());
         httpResponse->setSentFrom(msg->getSenderModule(), msg->getSenderGateId(), msg->getSendingTime());
 
@@ -251,8 +254,8 @@ RealHttpReplyMessage* HttpResponsePraser::praseHttpResponse(cPacket *msg)
     }
 
 //    EV << "payload now is:" << httpResponse->payload() << endl;
-//    EV << "payload length now is :" << recv_body_length << endl;
-//    EV << "httpResponse bytelength is: " << httpResponse->getByteLength() << endl;
+    EV << "payload length now is :" << recv_body_length << endl;
+    EV << "httpResponse bytelength is: " << httpResponse->getByteLength() << endl;
 
 
     delete msg;
