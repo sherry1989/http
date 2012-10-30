@@ -106,12 +106,14 @@ namespace RequestPraser
         parser->httpRequest->setProtocol(11);
 
         /*
-         * set targetUrl of this http response message
+         * set targetUrl of this http request message
          */
         std::string targetUrl;
         targetUrl.assign(parser->getRequestHeader("Host"));
         parser->httpRequest->setTargetUrl(targetUrl.c_str());
+        EV << "Set targetUrl from Host: "<< parser->httpRequest->targetUrl() << "\r\n";
 
+        parser->httpRequest->setBadRequest(false);
         return 0;
     }
 
