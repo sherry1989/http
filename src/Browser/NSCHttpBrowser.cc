@@ -164,6 +164,11 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
     if (sockdata->praser == NULL)
     {
         sockdata->praser = new HttpResponsePraser();
+        EV_DEBUG << "New a HttpResponsePraser" << endl;
+    }
+    else
+    {
+        EV_DEBUG << "Use an old HttpResponsePraser" << endl;
     }
     //--modified end
 
@@ -225,7 +230,7 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
              */
             if (sockdata->svrSupport == e_Support)
             {
-                while (!pPipeReq->isEmpty(svrName, socket) && sockdata->pending <= maxPipelinedReqs)
+                while (!pPipeReq->isEmpty(svrName, socket) && sockdata->pending < maxPipelinedReqs)
                 {
                     sendMsg = pPipeReq->getMsg(svrName, socket);
                     cPacket *pckt = check_and_cast<cPacket *>(sendMsg);
@@ -481,7 +486,7 @@ void NSCHttpBrowser::sendMessage(TCPSocket *socket, HttpRequestMessage *req)
 
     //--add by wangqian, 2012-07-04
     // add msg log when send it
-    logRequest(req);
+    EV_INFO << "Sending request " << req->getName() << " to socket. Size is " << req->getByteLength() << " bytes" << endl;
     //--add end
 
     switch (socket->getDataTransferMode())
@@ -906,10 +911,12 @@ std::string NSCHttpBrowser::formatHttpRequestMessage(const RealHttpRequestMessag
     if (strcmp(httpRequest->host(),"") != 0)
     {
       str << "Host: "<< httpRequest->host() << "\r\n";
+      EV << "host not null Set Host: "<< httpRequest->host() << "\r\n";
     }
     else
     {
       str << "Host: "<< httpRequest->targetUrl() << "\r\n";
+      EV << "Set Host: "<< httpRequest->targetUrl() << "\r\n";
     }
 
     /** 3.9 If-Match */
