@@ -16,6 +16,7 @@
 #include "NSCHttpServer.h"
 #include "HttpRequestPraser.h"
 #include "ByteArrayMessage.h"
+#include <algorithm>
 
 Define_Module(NSCHttpServer);
 
@@ -342,7 +343,8 @@ HttpReplyMessage* NSCHttpServer::handleReceivedMessage(cMessage *msg)
     if (extractServerName(request->targetUrl()) != hostName)
     {
         // This should never happen but lets check
-        error("Received message intended for '%s'", request->targetUrl()); // TODO: DEBUG HERE
+//        error("Received message intended for '%s'", request->targetUrl()); // TODO: DEBUG HERE
+        EV_ERROR << "Received message intended for " << request->targetUrl() << endl;
         return NULL;
     }
 
@@ -381,7 +383,6 @@ HttpReplyMessage* NSCHttpServer::handleReceivedMessage(cMessage *msg)
     return httpResponse;
 }
 
-
 /** send HTTP reply message though TCPSocket depends on the TCP DataTransferMode*/
 void NSCHttpServer::sendMessage(TCPSocket *socket, HttpReplyMessage *reply)
 {
@@ -405,7 +406,7 @@ void NSCHttpServer::sendMessage(TCPSocket *socket, HttpReplyMessage *reply)
 
             std::string resByteArray = formatByteResponseMessage(reply);
 
-            sendBytes = resByteArray.length() + 1;
+            sendBytes = resByteArray.length();
 
             char *ptr = new char[sendBytes];
             ptr[0] = '\0';
@@ -440,7 +441,6 @@ std::string NSCHttpServer::formatByteResponseMessage(HttpReplyMessage *httpRespo
     realhttpResponse->setCacheControl("");
     realhttpResponse->setContentEncoding("");
     realhttpResponse->setContentLanguage("");
-    realhttpResponse->setContentLength(0);
     realhttpResponse->setContentLocation("");
     realhttpResponse->setDate("");
     realhttpResponse->setEtag("");
@@ -463,7 +463,12 @@ std::string NSCHttpServer::formatByteResponseMessage(HttpReplyMessage *httpRespo
     realhttpResponse->setContentType(httpResponse->contentType()); // Emulates the content-type header field
     realhttpResponse->setKind(httpResponse->getKind());
     realhttpResponse->setPayload(httpResponse->payload());
-    realhttpResponse->setContentLength(httpResponse->getByteLength());
+    //--modified by wangqian, 2012-10-30
+    realhttpResponse->setKeepAlive(httpResponse->keepAlive());
+
+    realhttpResponse->setContentLength(std::max(httpResponse->getByteLength(), (int64_t)strlen(httpResponse->payload())));
+    //--modified end
+
 
     delete httpResponse;
     httpResponse = NULL;
@@ -515,7 +520,7 @@ std::string NSCHttpServer::formatHttpResponseMessage(const RealHttpReplyMessage 
         str << "HTTP/1.1";
         break;
       default:
-        throw cRuntimeError("Invalid HTTP Status code: %d", httpResponse->protocol());
+        throw cRuntimeError("Invalid HTTP Version: %d", httpResponse->protocol());
         break;
     }
     str << " ";
@@ -1030,7 +1035,15 @@ std::string NSCHttpServer::formatHttpResponseMessage(const RealHttpReplyMessage 
     EV_DEBUG << "Generate HTTP Response Body:"<< httpResponse->payload()<< endl;
 //    str << httpResponse->payload();
     std::string byteMessage = str.str();
-    byteMessage.append(httpResponse->payload(), httpResponse->contentLength());
+    //--modified by wangqian, 2012-10-29
+    byteMessage.append(httpResponse->payload());
+    EV_DEBUG << "Payload Length is" <<(int64_t)strlen(httpResponse->payload()) << ". " << endl;
+    if (httpResponse->contentLength() > (int64_t)strlen(httpResponse->payload()))
+    {
+        byteMessage.append((httpResponse->contentLength() - (int64_t)strlen(httpResponse->payload())), '\0');
+        EV_DEBUG << "Add NULL char. contentLength is" << httpResponse->contentLength() << ", payload Length is" <<(int64_t)strlen(httpResponse->payload()) << ". " << endl;
+    }
+    //--modified end
 
     /*************************************Finish generating HTTP Response Body*************************************/
 
