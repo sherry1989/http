@@ -573,25 +573,41 @@ std::string NSCHttpBrowser::formatByteRequestMessage(HttpRequestMessage *httpReq
     delete httpRequest;
     httpRequest = NULL;
 
+    std::string reqHeader;
+
     switch(protocolType)
     {
         case HTTP:
-            return formatHttpRequestMessage(realHttpRequest);
+            reqHeader = formatHttpRequestMessageHeader(realHttpRequest);
+            break;
         case SPDY:
-            return formatSpdyRequestMessage(realHttpRequest);
+            reqHeader = formatSpdyRequestMessageHeader(realHttpRequest);
+            break;
         case HTTPSM:
-            return formatHttpSMRequestMessage(realHttpRequest);
+            reqHeader = formatHttpSMRequestMessageHeader(realHttpRequest);
+            break;
         case HTTPNF:
-            return formatHttpNFRequestMessage(realHttpRequest);
+            reqHeader = formatHttpNFRequestMessageHeader(realHttpRequest);
+            break;
         default:
-            delete realHttpRequest;
-            realHttpRequest = NULL;
             throw cRuntimeError("Invalid Application protocol: %d", protocolType);
     }
+
+
+    /*************************************Generate HTTP Request Body*************************************/
+
+    reqHeader.append(realHttpRequest->payload());
+
+    /*************************************Finish generating HTTP Request Body*************************************/
+
+    delete realHttpRequest;
+    realHttpRequest = NULL;
+
+    return reqHeader;
 }
 
 /*
- * Format a Request message to HTTP Request Message
+ * Format a Request message to HTTP Request Message Header
  * Request   = Request-Line
                 *(( general-header)
                 | request-header
@@ -599,7 +615,7 @@ std::string NSCHttpBrowser::formatByteRequestMessage(HttpRequestMessage *httpReq
                 CRLF
                 [ message-body ]
  */
-std::string NSCHttpBrowser::formatHttpRequestMessage(const RealHttpRequestMessage *httpRequest)
+std::string NSCHttpBrowser::formatHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest)
 {
     std::ostringstream str;
 
@@ -1221,47 +1237,29 @@ std::string NSCHttpBrowser::formatHttpRequestMessage(const RealHttpRequestMessag
 
     str << "\r\n";
 
-    /*************************************Generate HTTP Request Body*************************************/
+    return str.str();
+}
 
-    str << httpRequest->payload();
-
-    /*************************************Finish generating HTTP Request Body*************************************/
-
-    delete httpRequest;
-    httpRequest = NULL;
+/** Format a Request message to HTTP Request Message Header */
+std::string NSCHttpBrowser::formatSpdyRequestMessageHeader(const RealHttpRequestMessage *httpRequest)
+{
+    std::ostringstream str;
 
     return str.str();
 }
 
-/** Format a Request message to HTTP Request Message */
-std::string NSCHttpBrowser::formatSpdyRequestMessage(const RealHttpRequestMessage *httpRequest)
+/** Format a Request message to HTTP Request Message Header */
+std::string NSCHttpBrowser::formatHttpSMRequestMessageHeader(const RealHttpRequestMessage *httpRequest)
 {
     std::ostringstream str;
-
-    delete httpRequest;
-    httpRequest = NULL;
 
     return str.str();
 }
 
-/** Format a Request message to HTTP Request Message */
-std::string NSCHttpBrowser::formatHttpSMRequestMessage(const RealHttpRequestMessage *httpRequest)
+/** Format a Request message to HTTP Request Message Header */
+std::string NSCHttpBrowser::formatHttpNFRequestMessageHeader(const RealHttpRequestMessage *httpRequest)
 {
     std::ostringstream str;
-
-    delete httpRequest;
-    httpRequest = NULL;
-
-    return str.str();
-}
-
-/** Format a Request message to HTTP Request Message */
-std::string NSCHttpBrowser::formatHttpNFRequestMessage(const RealHttpRequestMessage *httpRequest)
-{
-    std::ostringstream str;
-
-    delete httpRequest;
-    httpRequest = NULL;
 
     return str.str();
 }

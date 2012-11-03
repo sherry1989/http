@@ -65,17 +65,17 @@ class NSCHttpServer : public HttpServer
          */
         std::string formatByteResponseMessage(HttpReplyMessage *httpResponse);
 
-        /** Format a response message to HTTP Response Message */
-        std::string formatHttpResponseMessage(const RealHttpReplyMessage *httpResponse);
+        /** Format a response message to HTTP Response Message Header */
+        std::string formatHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
 
-        /** Format a response message to SPDY Response Message */
-        std::string formatSpdyResponseMessage(const RealHttpReplyMessage *httpResponse);
+        /** Format a response message to SPDY Response Message Header */
+        std::string formatSpdyResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
 
-        /** Format a response message to HTTP S+M Response Message */
-        std::string formatHttpSMResponseMessage(const RealHttpReplyMessage *httpResponse);
+        /** Format a response message to HTTP S+M Response Message Header */
+        std::string formatHttpSMResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
 
-        /** Format a response message to HTTPNF Response Message */
-        std::string formatHttpNFResponseMessage(const RealHttpReplyMessage *httpResponse);
+        /** Format a response message to HTTPNF Response Message Header */
+        std::string formatHttpNFResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
         //--added end
 
     protected:

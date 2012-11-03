@@ -127,17 +127,17 @@ class NSCHttpBrowser : public HttpBrowser
          */
         std::string formatByteRequestMessage(HttpRequestMessage *httpRequest);
 
-        /** Format a Request message to HTTP Request Message */
-        std::string formatHttpRequestMessage(const RealHttpRequestMessage *httpRequest);
+        /** Format a Request message to HTTP Request Message Header */
+        std::string formatHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
 
-        /** Format a Request message to SPDY Request Message */
-        std::string formatSpdyRequestMessage(const RealHttpRequestMessage *httpRequest);
+        /** Format a Request message to SPDY Request Message Header */
+        std::string formatSpdyRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
 
-        /** Format a Request message to HTTP S+M Request Message */
-        std::string formatHttpSMRequestMessage(const RealHttpRequestMessage *httpRequest);
+        /** Format a Request message to HTTP S+M Request Message Header */
+        std::string formatHttpSMRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
 
-        /** Format a Request message to HTTPNF Request Message */
-        std::string formatHttpNFRequestMessage(const RealHttpRequestMessage *httpRequest);
+        /** Format a Request message to HTTPNF Request Message Header */
+        std::string formatHttpNFRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
         //--added end
 
     protected:

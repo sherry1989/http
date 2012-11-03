@@ -473,25 +473,47 @@ std::string NSCHttpServer::formatByteResponseMessage(HttpReplyMessage *httpRespo
     delete httpResponse;
     httpResponse = NULL;
 
+    std::string resHeader;
+
     switch(protocolType)
     {
         case HTTP:
-            return formatHttpResponseMessage(realhttpResponse);
+            resHeader = formatHttpResponseMessageHeader(realhttpResponse);
+            break;
         case SPDY:
-            return formatSpdyResponseMessage(realhttpResponse);
+            resHeader = formatSpdyResponseMessageHeader(realhttpResponse);
+            break;
         case HTTPSM:
-            return formatHttpSMResponseMessage(realhttpResponse);
+            resHeader = formatHttpSMResponseMessageHeader(realhttpResponse);
+            break;
         case HTTPNF:
-            return formatHttpNFResponseMessage(realhttpResponse);
+            resHeader = formatHttpNFResponseMessageHeader(realhttpResponse);
+            break;
         default:
-            delete realhttpResponse;
-            realhttpResponse = NULL;
             throw cRuntimeError("Invalid Application protocol: %d", protocolType);
     }
+
+    /*************************************Generate HTTP Response Body*************************************/
+
+    EV_DEBUG << "Generate HTTP Response Body:"<< realhttpResponse->payload()<< endl;
+    resHeader.append(realhttpResponse->payload());
+    EV_DEBUG << "Payload Length is" <<(int64_t)strlen(realhttpResponse->payload()) << ". " << endl;
+    if (realhttpResponse->contentLength() > (int64_t)strlen(realhttpResponse->payload()))
+    {
+        resHeader.append((realhttpResponse->contentLength() - (int64_t)strlen(realhttpResponse->payload())), '\0');
+        EV_DEBUG << "Add NULL char. contentLength is" << realhttpResponse->contentLength() << ", payload Length is" <<(int64_t)strlen(realhttpResponse->payload()) << ". " << endl;
+    }
+
+    /*************************************Finish generating HTTP Response Body*************************************/
+
+    delete realhttpResponse;
+    realhttpResponse = NULL;
+
+    return resHeader;
 }
 
 /*
- * Format a response message to HTTP Response Message
+ * Format a response message to HTTP Response Message Header
  * response   = Status-Line
                 *(( general-header)
                 | response-header
@@ -499,7 +521,7 @@ std::string NSCHttpServer::formatByteResponseMessage(HttpReplyMessage *httpRespo
                 CRLF
                 [ message-body ]
  */
-std::string NSCHttpServer::formatHttpResponseMessage(const RealHttpReplyMessage *httpResponse)
+std::string NSCHttpServer::formatHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse)
 {
     std::ostringstream str;
 
@@ -1029,59 +1051,29 @@ std::string NSCHttpServer::formatHttpResponseMessage(const RealHttpReplyMessage 
 
     str << "\r\n";
 
-    /*************************************Generate HTTP Response Body*************************************/
-
-
-    EV_DEBUG << "Generate HTTP Response Body:"<< httpResponse->payload()<< endl;
-//    str << httpResponse->payload();
-    std::string byteMessage = str.str();
-    //--modified by wangqian, 2012-10-29
-    byteMessage.append(httpResponse->payload());
-    EV_DEBUG << "Payload Length is" <<(int64_t)strlen(httpResponse->payload()) << ". " << endl;
-    if (httpResponse->contentLength() > (int64_t)strlen(httpResponse->payload()))
-    {
-        byteMessage.append((httpResponse->contentLength() - (int64_t)strlen(httpResponse->payload())), '\0');
-        EV_DEBUG << "Add NULL char. contentLength is" << httpResponse->contentLength() << ", payload Length is" <<(int64_t)strlen(httpResponse->payload()) << ". " << endl;
-    }
-    //--modified end
-
-    /*************************************Finish generating HTTP Response Body*************************************/
-
-    delete httpResponse;
-    httpResponse = NULL;
-
-    return byteMessage;
+    return str.str();
 }
 
-/** Format a response message to HTTP Response Message */
-std::string NSCHttpServer::formatSpdyResponseMessage(const RealHttpReplyMessage *httpResponse)
+/** Format a response message to HTTP Response Message Header */
+std::string NSCHttpServer::formatSpdyResponseMessageHeader(const RealHttpReplyMessage *httpResponse)
 {
     std::ostringstream str;
-
-    delete httpResponse;
-    httpResponse = NULL;
 
     return str.str();
 }
 
-/** Format a response message to HTTP Response Message */
-std::string NSCHttpServer::formatHttpSMResponseMessage(const RealHttpReplyMessage *httpResponse)
+/** Format a response message to HTTP Response Message Header */
+std::string NSCHttpServer::formatHttpSMResponseMessageHeader(const RealHttpReplyMessage *httpResponse)
 {
     std::ostringstream str;
-
-    delete httpResponse;
-    httpResponse = NULL;
 
     return str.str();
 }
 
-/** Format a response message to HTTP Response Message */
-std::string NSCHttpServer::formatHttpNFResponseMessage(const RealHttpReplyMessage *httpResponse)
+/** Format a response message to HTTP Response Message Header */
+std::string NSCHttpServer::formatHttpNFResponseMessageHeader(const RealHttpReplyMessage *httpResponse)
 {
     std::ostringstream str;
-
-    delete httpResponse;
-    httpResponse = NULL;
 
     return str.str();
 }
