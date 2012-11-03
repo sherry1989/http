@@ -374,6 +374,25 @@ void NSCHttpBrowser::submitToSocket(const char* moduleName, int connectPort, Htt
 
     EV_DEBUG << "Submitting server name " << svrName.c_str() << ". " << endl;
 
+    //--added by wangqian, 2012-10-31
+    /*
+     * check if there is closed socket, if exist, delete the information related to it
+     */
+    for (SocketSet::iterator iter = sockCollectionMap[svrName].begin(); iter != sockCollectionMap[svrName].end(); )
+    {
+        if ( (*iter)->getState() != TCPSocket::CONNECTED && (*iter)->getState() != TCPSocket::CONNECTING)
+        {
+            sockCollection.removeSocket(*iter);
+            delete *iter;
+            sockCollectionMap[svrName].erase(iter++);
+        }
+        else
+        {
+            iter++;
+        }
+    }
+
+
     /*
      * Create and initialize sockets if there's not enough socket to use
      * Issue connect to the created sockets for the specified module and port.
