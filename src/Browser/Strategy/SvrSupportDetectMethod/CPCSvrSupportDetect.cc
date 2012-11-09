@@ -26,7 +26,7 @@ void CPCSvrSupportDetect::initSvrSupportForSock(PipeSockData *sockdata)
 HttpContentType CPCSvrSupportDetect::setSvrSupportForSock(PipeSockData *sockdata,  cPacket *msg)
 {
     //record the response resource type for the follow-up use
-    HttpContentType contentType;
+    HttpContentType contentType = CT_UNKNOWN;
 
     //not detect whether the server support pipelining
     if (sockdata->svrSupport == e_Unknown)
