@@ -69,27 +69,20 @@ void NSCHttpBrowser::initialize(int stage)
 {
     HttpBrowser::initialize(stage);
 
-    //--added by wangqian, 2012-05-15
     if (stage==0)
     {
         maxConnections = par("maxConnections");
         maxConnectionsPerHost = par("maxConnectionsPerHost");
         maxPipelinedReqs = par("maxPipelinedReqs");
         pipeliningMode = par("pipeliningMode");
-        //--added by wangqian, 2012-05-16
         SvrSupportDetect = par("SvrSupportDetect");
-        //--added end
-        //--added by wangqian, 2012-10-16
         protocolType = par("protocolType");
-        //--added end
 
-        //--added by wangqian, 2012-05-15
         sockCollectionMap.clear();    ///< List of active sockets for each server
 
         chooseStrategy(pipeliningMode, SvrSupportDetect);
 
     }
-    //--added end
 }
 
 void NSCHttpBrowser::socketEstablished(int connId, void *yourPtr)
@@ -107,7 +100,7 @@ void NSCHttpBrowser::socketEstablished(int connId, void *yourPtr)
     // Get the socket and associated data structure.
     NSCSockData *sockdata = (NSCSockData*)yourPtr;
     TCPSocket *socket = sockdata->socket;
-    //--modified by wangqian, 2012-05-15
+
     std::string svrName(sockdata->svrName);
     EV_DEBUG << "Socket with server " << svrName.c_str() << endl;
 //
@@ -128,7 +121,6 @@ void NSCHttpBrowser::socketEstablished(int connId, void *yourPtr)
     cMessage *msg;
     EV_DEBUG << "Proceeding to send messages on socket " << connId << endl;
 
-    //--modified by wangqian, 2012-05-16
     /*
      * This is the first time to send http request in the TCP connection
      * Need to detect if the server support pipelining, so just send a single request
@@ -139,17 +131,12 @@ void NSCHttpBrowser::socketEstablished(int connId, void *yourPtr)
         cPacket *pckt = check_and_cast<cPacket *>(msg);
         EV_INFO << "Submitting request when established " << msg->getName() << " to socket " << connId << ". size is " << pckt->getByteLength() << " bytes" << endl;
 
-        //--modified by wangqian, 2012-10-16
         // change message send method to adapt to the use of NSC
         //socket->send(msg);
         sendMessage(socket, check_and_cast<HttpRequestMessage *>(msg));
-        //--modified end
 
         sockdata->pending++;
     }
-    //--modified end
-
-    //--modified end
 }
 
 void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool urgent)
@@ -164,9 +151,6 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
     NSCSockData *sockdata = (NSCSockData*)yourPtr;
     TCPSocket *socket = sockdata->socket;
 
-    //--added by wangqian, 2012-10-17
-
-    //--modified by wangqian, 2012-10-23
     if (sockdata->praser == NULL)
     {
         sockdata->praser = new HttpResponsePraser();
@@ -176,13 +160,9 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
     {
         EV_DEBUG << "Use an old HttpResponsePraser" << endl;
     }
-    //--modified end
 
     cPacket *prasedMsg = sockdata->praser->praseHttpResponse(msg, protocolType);
 
-    //--added end
-
-    //--modified by wangqian, 2012-10-23
     /*
      * check if this response message is complete
      *      if it's a complete message, handle it
@@ -195,18 +175,14 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
 
         handleDataMessage(prasedMsg);
 
-        //--added by wangqian, 2012-10-17
         delete sockdata->praser;
-        //--added end
         sockdata->praser = NULL;
 
-        //--added by wangqian, 2012-05-15
         --sockdata->pending;
 
         std::string svrName(sockdata->svrName);
         cMessage *sendMsg;
 
-        //--modified by wangqian, 2012-05-16
         /*
          * if received the response for html, send a single request directly
          */
@@ -218,11 +194,9 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
                 cPacket *pckt = check_and_cast<cPacket *>(sendMsg);
                 EV_INFO << "Submitting request first use html connection " << sendMsg->getName() << " to socket " << connId << ". size is " << pckt->getByteLength() << " bytes" << endl;
 
-                //--modified by wangqian, 2012-10-16
                 // change message send method to adapt to the use of NSC
                 //socket->send(sendMsg);
                 sendMessage(socket, check_and_cast<HttpRequestMessage *>(sendMsg));
-                //--modified end
 
                 sockdata->pending++;
             }
@@ -243,11 +217,9 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
                     cPacket *pckt = check_and_cast<cPacket *>(sendMsg);
                     EV_INFO << "Submitting request pipelined " << sendMsg->getName() << " to socket " << connId << ". size is " << pckt->getByteLength() << " bytes" << endl;
 
-                    //--modified by wangqian, 2012-10-16
                     // change message send method to adapt to the use of NSC
                     //socket->send(sendMsg);
                     sendMessage(socket, check_and_cast<HttpRequestMessage *>(sendMsg));
-                    //--modified end
 
                     sockdata->pending++;
                 }
@@ -260,11 +232,9 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
                     cPacket *pckt = check_and_cast<cPacket *>(sendMsg);
                     EV_INFO << "Submitting request not pipelined " << sendMsg->getName() << " to socket " << connId << ". size is " << pckt->getByteLength() << " bytes" << endl;
 
-                    //--modified by wangqian, 2012-10-16
                     // change message send method to adapt to the use of NSC
                     //socket->send(sendMsg);
                     sendMessage(socket, check_and_cast<HttpRequestMessage *>(sendMsg));
-                    //--modified end
 
                     sockdata->pending++;
                 }
@@ -274,18 +244,13 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
                 EV_DEBUG << "Server supporting not recognised." << endl;
             }
         }
-        //--modified end
 
-        //--added end
-
-        //--modified by wangqian, 2012-05-15
     //    if (--sockdata->pending==0)
         if (sockdata->pending == 0 && pPipeReq->isEmpty(svrName, socket))
         {
             EV_DEBUG << "Received last expected reply on this socket　and there is no resource need to request. Issing a close" << endl;
             socket->close();
         }
-        //--modified end
 
         // Message deleted in handler - do not delete here!
     }
@@ -329,10 +294,9 @@ void NSCHttpBrowser::socketClosed(int connId, void *yourPtr)
     TCPSocket *socket = sockdata->socket;
 
     sockCollection.removeSocket(socket);
-    //--added by wangqian, 2012-05-16
     std::string svrName(sockdata->svrName);
     sockCollectionMap[svrName].erase(socket);
-    //--added end
+
     delete socket;
     delete sockdata;
 }
@@ -356,10 +320,10 @@ void NSCHttpBrowser::socketFailure(int connId, void *yourPtr, int code)
     NSCSockData *sockdata = (NSCSockData*)yourPtr;
     TCPSocket *socket = sockdata->socket;
     sockCollection.removeSocket(socket);
-    //--added by wangqian, 2012-05-16
+
     std::string svrName(sockdata->svrName);
     sockCollectionMap[svrName].erase(socket);
-    //--added end
+
     delete socket;
     delete sockdata;
 }
@@ -375,13 +339,10 @@ void NSCHttpBrowser::submitToSocket(const char* moduleName, int connectPort, Htt
 
     EV_DEBUG << "Pipe Submitting to socket. Module: " << moduleName << ", port: " << connectPort << ". Total messages: " << queue.size() << endl;
 
-    //--modified by wangqian, 2012-05-15
-
     std::string svrName(moduleName);
 
     EV_DEBUG << "Submitting server name " << svrName.c_str() << ". " << endl;
 
-    //--added by wangqian, 2012-10-31
     /*
      * check if there is closed socket, if exist, delete the information related to it
      */
@@ -412,10 +373,8 @@ void NSCHttpBrowser::submitToSocket(const char* moduleName, int connectPort, Htt
         {
             // Create and initialize the socket
             TCPSocket *socket = new TCPSocket();
-            //--modified by wangqian, 2012-10-16
             // change the dataTransferMode from TCP_TRANSFER_OBJECT to TCP_TRANSFER_BYTESTREAM to support NSC TCP
             socket->setDataTransferMode(TCP_TRANSFER_BYTESTREAM);
-            //--modified end
             socket->setOutputGate(gate("tcpOut"));
             sockCollection.addSocket(socket);
             sockCollectionMap[svrName].insert(socket);
@@ -426,9 +385,7 @@ void NSCHttpBrowser::submitToSocket(const char* moduleName, int connectPort, Htt
             sockdata->svrName.assign(moduleName);
             sockdata->socket = socket;
             sockdata->pending = 0;
-            //--added by wangqian, 2012-10-23
             sockdata->praser = NULL;
-            //--added end
 
             pSvrSupportDetect->initSvrSupportForSock(sockdata);
             socket->setCallbackObject(this, sockdata);
@@ -441,7 +398,6 @@ void NSCHttpBrowser::submitToSocket(const char* moduleName, int connectPort, Htt
     {
         EV_DEBUG << "Don't need to create more TCP connections。"<< endl;
     }
-    //--modified end
 
     HttpRequestMessage *msg;
     while (!queue.empty())
@@ -503,17 +459,14 @@ void NSCHttpBrowser::chooseStrategy(Pipelining_Mode_Type pipeliningMode, SvrSupp
     }
 }
 
-//--added by wangqian, 2012-10-16
 /** send HTTP requesst message though TCPSocket depends on the TCP DataTransferMode*/
 void NSCHttpBrowser::sendMessage(TCPSocket *socket, HttpRequestMessage *req)
 {
     long sendBytes = 0;
     cMessage *sendMsg = NULL;
 
-    //--add by wangqian, 2012-07-04
     // add msg log when send it
     EV_INFO << "Sending request " << req->getName() << " to socket. Size is " << req->getByteLength() << " bytes" << endl;
-    //--add end
 
     switch (socket->getDataTransferMode())
     {
@@ -535,7 +488,6 @@ void NSCHttpBrowser::sendMessage(TCPSocket *socket, HttpRequestMessage *req)
 
             char *ptr = new char[sendBytes];
             ptr[0] = '\0';
-            //BUGBUGBUG
             memcpy(ptr, resByteArray.c_str(), sendBytes);
             byMsg->getByteArray().assignBuffer(ptr, sendBytes);
             byMsg->setByteLength(sendBytes);
@@ -723,7 +675,6 @@ std::string NSCHttpBrowser::formatHttpRequestMessageHeader(const RealHttpRequest
      * Connection = "Connection" ":" 1#(connection-token)
        connection-token  = token
      */
-    //--modified by wangqian, 2012-11-07
     /*
      * the Connection headers are not valid and MUST not be send when use SPDY formed fream and use the zlib dictionary
      */
@@ -738,7 +689,6 @@ std::string NSCHttpBrowser::formatHttpRequestMessageHeader(const RealHttpRequest
             str << "Connection: close\r\n";
         }
     }
-    //--modified end
 
     /** 2.3 Date */
     /*
@@ -1368,5 +1318,4 @@ std::string NSCHttpBrowser::formatHttpNFRequestMessageHeader(const RealHttpReque
     return str.str();
 }
 
-//--added end
 

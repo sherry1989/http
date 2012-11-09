@@ -33,7 +33,6 @@ NSCHttpServer::~NSCHttpServer()
 
 }
 
-//--added by wangqian, 2012-10-16
 void NSCHttpServer::initialize()
 {
     HttpServerBase::initialize();
@@ -57,7 +56,6 @@ void NSCHttpServer::initialize()
     WATCH(numBroken);
     WATCH(socketsOpened);
 }
-//--added end
 
 std::string NSCHttpServer::generateBody()
 {
@@ -101,22 +99,17 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
     }
     TCPSocket *socket = (TCPSocket*)yourPtr;
 
-    //--added by wangqian, 2012-10-17
     HttpRequestPraser *praser = new HttpRequestPraser();
 
     cPacket *prasedMsg = praser->praseHttpRequest(msg, protocolType);
 
-    //--added end
-
     // Should be a HttpRequestMessage
     EV_DEBUG << "Socket data arrived on connection " << connId << ". Message=" << prasedMsg->getName() << ", kind=" << prasedMsg->getKind() << endl;
 
-    //--modified by wangqian, 2012-05-24
     // call the message handler to process the message.
-    //--modified by wangqian, 2012-10-15
     // change from cMessage to RealRealHttpReplyMessage to record the return of handleReceivedMessage
     HttpReplyMessage *reply = handleReceivedMessage(prasedMsg);
-    //--modified end
+
     if (reply!=NULL)
     {
         /*
@@ -125,19 +118,16 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
 //        socket->send(reply); // Send to socket if the reply is non-zero.
         double replyDelay;
         replyDelay = (double)(rdReplyDelay->draw());
-        //--added by wangqian, 2012-05-17
         EV_DEBUG << "Need to send message on socket " << socket << ". Message=" << reply->getName() << ", kind=" << reply->getKind() <<", sendDelay = " << replyDelay << endl;
-        //--added end
+
         if (replyDelay == 0)
         {
             // if there is no other msg wait to send, send it directly
             if (replyInfoPerSocket.find(socket) == replyInfoPerSocket.end() || replyInfoPerSocket[socket].empty())
             {
-                //--modified by wangqian, 2012-10-15
                 // change message send method to adapt to the use of NSC
                 //socket->send(reply); // Send to socket if the reply is non-zero.
                 sendMessage(socket, reply);
-                //--modified end
             }
             else
             {
@@ -151,11 +141,9 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
                 }
                 if (readyToSend)
                 {
-                    //--modified by wangqian, 2012-10-15
                     // change message send method to adapt to the use of NSC
                     //socket->send(reply); // Send to socket if the reply is non-zero.
                     sendMessage(socket, reply);
-                    //--modified end
                 }
                 // there is earlier reply not send, record this reply
                 else
@@ -242,25 +230,21 @@ void NSCHttpServer::handleSelfDelayedReplyMessage(cMessage *msg)
                 //send the earlier replies
                 for (unsigned int i = 1; i <= earlierCount; i++)
                 {
-                    //--modified by wangqian, 2012-10-15
                     // change message send method to adapt to the use of NSC
                     //msg = dynamic_cast<cMessage*>(replyInfoPerSocket[socket].front().reply);
                     //socket->send(msg); // Send to socket if the reply is non-zero.
                     sendMessage(socket, replyInfoPerSocket[socket].front().reply);
-                    //--modified end
 
                     EV_INFO << "Send earlier message # " << i << ". Message=" << msg->getName() << ", kind=" << msg->getKind()<< endl;
                     replyInfoPerSocket[socket].pop_front();
                 }
 
-                //--modified by wangqian, 2012-10-15
                 // change message send method to adapt to the use of NSC
                 //msg = dynamic_cast<cMessage*>(reply);
                 //socket->send(msg); // Send to socket if the reply is non-zero.
 
                 EV_INFO << "Send message =" << reply->getName() << ", kind=" << reply->getKind()<< endl;
                 sendMessage(socket, reply);
-                //--modified end
 
                 replyInfoPerSocket[socket].pop_front();
 
@@ -268,12 +252,10 @@ void NSCHttpServer::handleSelfDelayedReplyMessage(cMessage *msg)
                 {
                     if (replyInfoPerSocket[socket].front().readyToSend)
                     {
-                        //--modified by wangqian, 2012-10-15
                         // change message send method to adapt to the use of NSC
                         //msg = dynamic_cast<cMessage*>(replyInfoPerSocket[socket].front().reply);
                         //socket->send(msg); // Send to socket if the reply is non-zero.
                         sendMessage(socket, replyInfoPerSocket[socket].front().reply);
-                        //--modified end
 
 //                        EV_INFO << "Send message =" << replyInfoPerSocket[socket].front().reply->getName() << ", kind=" << replyInfoPerSocket[socket].front().reply->getKind()<< endl;
                         replyInfoPerSocket[socket].pop_front();
@@ -317,10 +299,9 @@ void NSCHttpServer::handleMessage(cMessage *msg)
             // new connection -- create new socket object and server process
             socket = new TCPSocket(msg);
             socket->setOutputGate(gate("tcpOut"));
-            //--modified by wangqian, 2012-10-15
+
             // change the dataTransferMode from TCP_TRANSFER_OBJECT to TCP_TRANSFER_BYTESTREAM to support NSC TCP
             socket->setDataTransferMode(TCP_TRANSFER_BYTESTREAM);
-            //--modified end
             socket->setCallbackObject(this, socket);
             sockCollection.addSocket(socket);
         }
@@ -330,7 +311,6 @@ void NSCHttpServer::handleMessage(cMessage *msg)
     updateDisplay();
 }
 
-//--added by wangqian, 2012-10-15
 /*
  * Handle a received data message, e.g. check if the content requested exists.
  * change the HttpServerBase::handleReceivedMessage return type from cMessage to HttpReplyMessage to record the return of handleReceivedMessage
@@ -470,11 +450,8 @@ std::string NSCHttpServer::formatByteResponseMessage(HttpReplyMessage *httpRespo
     realhttpResponse->setContentType(httpResponse->contentType()); // Emulates the content-type header field
     realhttpResponse->setKind(httpResponse->getKind());
     realhttpResponse->setPayload(httpResponse->payload());
-    //--modified by wangqian, 2012-10-30
     realhttpResponse->setKeepAlive(httpResponse->keepAlive());
-
     realhttpResponse->setContentLength(std::max(httpResponse->getByteLength(), (int64_t)strlen(httpResponse->payload())));
-    //--modified end
 
 
     delete httpResponse;
@@ -615,7 +592,6 @@ std::string NSCHttpServer::formatHttpResponseMessageHeader(const RealHttpReplyMe
      * Connection = "Connection" ":" 1#(connection-token)
        connection-token  = token
      */
-    //--modified by wangqian, 2012-11-07
     /*
      * the Connection headers are not valid and MUST not be send when use SPDY formed fream and use the zlib dictionary
      */
@@ -630,7 +606,6 @@ std::string NSCHttpServer::formatHttpResponseMessageHeader(const RealHttpReplyMe
             str << "Connection: close\r\n";
         }
     }
-    //--modified end
 
     /** 2.3 Date */
     /*
@@ -1163,5 +1138,3 @@ std::string NSCHttpServer::formatHttpNFResponseMessageHeader(const RealHttpReply
 
     return str.str();
 }
-
-//--added end

@@ -52,7 +52,6 @@ class NSCHttpServer : public HttpServer
         /** Handle incoming messages */
         virtual void handleMessage(cMessage *msg);
 
-        //--added by wangqian, 2012-10-15
         /** send HTTP reply message though TCPSocket depends on the TCP DataTransferMode*/
         virtual void sendMessage(TCPSocket *socket, HttpReplyMessage *reply);
 
@@ -76,7 +75,10 @@ class NSCHttpServer : public HttpServer
 
         /** Format a response message to HTTPNF Response Message Header */
         std::string formatHttpNFResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
-        //--added end
+
+        void handleSelfDelayedReplyMessage(cMessage *msg);
+
+        virtual void handleSelfMessages(cMessage *msg);
 
     protected:
         /**
@@ -96,13 +98,7 @@ class NSCHttpServer : public HttpServer
 
         TCPSocket_ReplyInfo_Map replyInfoPerSocket;
 
-        void handleSelfDelayedReplyMessage(cMessage *msg);
-
-        virtual void handleSelfMessages(cMessage *msg);
-
-        //--added by wangqian, 2012-10-15
         Protocol_Type protocolType;
-        //--added end
 };
 
 #endif

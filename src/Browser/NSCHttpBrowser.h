@@ -33,7 +33,6 @@ class NSCHttpBrowser : public HttpBrowser
         NSCHttpBrowser();
         virtual ~NSCHttpBrowser();
 
-    //--added by wangqian, 2012-05-15
     protected:
         /*
          * record the http limit
@@ -41,20 +40,11 @@ class NSCHttpBrowser : public HttpBrowser
         unsigned int maxConnections;
         unsigned int maxConnectionsPerHost;
         unsigned int maxPipelinedReqs;
+
         Pipelining_Mode_Type pipeliningMode;
-        //--added by wangqian, 2012-05-16
         SvrSupportDetect_Method_Type SvrSupportDetect;
-        //--added end
-
-        //--added by wangqian, 2012-10-16
         Protocol_Type protocolType;
-        //--added end
 
-    //--added end
-
-    protected:
-
-        //--added by wangqian, 2012-05-15
         /**
          * A list of active sockets for each server
          */
@@ -63,14 +53,9 @@ class NSCHttpBrowser : public HttpBrowser
          * A list of http requests left for each server
          */
 //        typedef std::map<std::string, HttpRequestQueue> ReqListPerSvr;
-        //--added end
 
-
-    //--added by wangqian, 2012-05-15
-    protected:
         TCPSocketServerMap sockCollectionMap;    ///< List of active sockets for each server
 //        ReqListPerSvr reqListPerSvr;    ///< List of http requests left for each server
-    //--added end
 
     protected:
         /** @name cSimpleModule redefinitions */
@@ -117,7 +102,6 @@ class NSCHttpBrowser : public HttpBrowser
          */
         virtual void socketFailure(int connId, void *yourPtr, int code);
 
-        //--added by wangqian, 2012-10-16
         /** send HTTP reply message though TCPSocket depends on the TCP DataTransferMode*/
         virtual void sendMessage(TCPSocket *socket, HttpRequestMessage *reply);
 
@@ -138,7 +122,6 @@ class NSCHttpBrowser : public HttpBrowser
 
         /** Format a Request message to HTTPNF Request Message Header */
         std::string formatHttpNFRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
-        //--added end
 
     protected:
         /** @name Socket establishment and data submission */
@@ -151,7 +134,6 @@ class NSCHttpBrowser : public HttpBrowser
         virtual void submitToSocket(const char* moduleName, int connectPort, HttpRequestQueue &queue);
         //@}
 
-        //--added by wangqian, 2012-05-22
         /*
          * 指向各类策略基类的指针，用于调用不同的策略
          */
@@ -161,9 +143,6 @@ class NSCHttpBrowser : public HttpBrowser
 
         //策略选择，确定派生类
         void chooseStrategy(Pipelining_Mode_Type pipeliningMode, SvrSupportDetect_Method_Type SvrSupportDetect);
-        //--added end
-
-
 };
 
 #endif

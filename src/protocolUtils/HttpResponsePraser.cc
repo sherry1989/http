@@ -214,7 +214,6 @@ RealHttpReplyMessage* HttpResponsePraser::praseHttpResponse(cPacket *msg, Protoc
     EV_DEBUG_NOMODULE << "HTTP Response to parse ByteLength is:" << bufLength << endl;
     EV_DEBUG_NOMODULE << "HTTP Response to parse ByteArray is:" << buf << endl;
 
-    //--modified by wangqian, 2012-10-23
     /*
      * when deflate http header, use "\r\n\r\n" is not captable, use response state to decide whether finish parsing http header is better
      */
@@ -292,7 +291,6 @@ RealHttpReplyMessage* HttpResponsePraser::praseHttpResponse(cPacket *msg, Protoc
     {
         return NULL;
     }
-    //--modified end
 }
 
 void HttpResponsePraser::spdyParser(const char *data,size_t len)
