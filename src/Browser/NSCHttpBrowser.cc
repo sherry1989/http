@@ -82,6 +82,23 @@ void NSCHttpBrowser::initialize(int stage)
 
         chooseStrategy(pipeliningMode, SvrSupportDetect);
 
+        // Initialize watches
+        WATCH(htmlRequested);
+        WATCH(htmlReceived);
+        WATCH(htmlErrorsReceived);
+        WATCH(imgResourcesRequested);
+        WATCH(imgResourcesReceived);
+        WATCH(textResourcesRequested);
+        WATCH(textResourcesReceived);
+        WATCH(messagesInCurrentSession);
+        WATCH(connectionsCount);
+        WATCH(sessionCount);
+
+        WATCH(reqInCurSession);
+        WATCH(reqNoInCurSession);
+
+        WATCH(numBroken);
+        WATCH(socketsOpened);
     }
 }
 
