@@ -10,8 +10,8 @@
 
 typedef unsigned int Protocol_Type;
 const Protocol_Type HTTP = 1;
-const Protocol_Type SPDY = 2;
-const Protocol_Type HTTPSM = 3;
+const Protocol_Type SPDY_ZLIB_HTTP = 2;
+const Protocol_Type SPDY_HEADER_BLOCK = 3;
 const Protocol_Type HTTPNF = 4;
 
 #include "httpProtocol.h"

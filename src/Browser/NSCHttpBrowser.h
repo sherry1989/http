@@ -130,11 +130,11 @@ class NSCHttpBrowser : public HttpBrowser
         /** Format a Request message to HTTP Request Message Header */
         std::string formatHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
 
-        /** Format a Request message to SPDY Request Message Header */
-        std::string formatSpdyRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
+        /** Deflate a HTTP Request message header using the Name-Value zlib dictionary */
+        std::string formatSpdyZlibHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
 
-        /** Format a Request message to HTTP S+M Request Message Header */
-        std::string formatHttpSMRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
+        /** Format a Request message header to zlib-deflated SPDY header block */
+        std::string formatSpdyZlibHeaderBlockRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
 
         /** Format a Request message to HTTPNF Request Message Header */
         std::string formatHttpNFRequestMessageHeader(const RealHttpRequestMessage *httpRequest);

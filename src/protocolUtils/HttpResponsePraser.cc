@@ -8,8 +8,12 @@
 #include "HttpResponsePraser.h"
 #include "HttpNodeBase.h"
 #include "ByteArrayMessage.h"
+#include "HttpLogdefs.h"
 
 #include <cassert>
+#include <iomanip>
+
+#include "spdylay_zlib.h"
 
 namespace ResponsePraser
 {
@@ -72,9 +76,10 @@ namespace ResponsePraser
 //        parser->httpResponse->setPayload(buf);
         parser->set_recv_body_length(len);
 
-        EV << "payload strlen is:" << strlen(parser->httpResponse->payload()) << endl;
-        EV << "buffer len is :" << len << endl;
-        EV << "httpResponse bytelength is: " << parser->httpResponse->getByteLength() << endl;
+        EV_DEBUG_NOMODULE << "payload is:" << parser->httpResponse->payload() << endl;
+        EV_DEBUG_NOMODULE << "payload strlen is:" << strlen(parser->httpResponse->payload()) << endl;
+        EV_DEBUG_NOMODULE << "buffer len is :" << len << endl;
+        EV_DEBUG_NOMODULE << "httpResponse bytelength is: " << parser->httpResponse->getByteLength() << endl;
 
 //        parser->httpResponse->setPayload(buf);
 //        parser->httpResponse->setContentLength(len);
@@ -104,7 +109,7 @@ namespace ResponsePraser
         parser->httpResponse->setKeepAlive(http_should_keep_alive(htp));
         parser->set_response_state(parser->HEADER_COMPLETE);
 
-        EV << "Parsing HTTP Response Status code is:"<< parser->httpResponse->result() << endl;
+        EV_DEBUG_NOMODULE << "Parsing HTTP Response Status code is:"<< parser->httpResponse->result() << endl;
 
         /*
          * set contentType of this http response message
@@ -145,7 +150,7 @@ namespace ResponsePraser
         std::string contentLength;
         contentLength.assign(parser->getResponseHeader("Content-Length"));
         parser->httpResponse->setByteLength(atol(contentLength.c_str()));
-        EV << "Parsing HTTP Response Content-Length is:"<< parser->httpResponse->getByteLength() << endl;
+        EV_DEBUG_NOMODULE << "Parsing HTTP Response Content-Length is:"<< parser->httpResponse->getByteLength() << endl;
 
         unsigned int status = parser->httpResponse->result();
 
@@ -198,51 +203,69 @@ HttpResponsePraser::~HttpResponsePraser()
     pResponseParser = NULL;
 }
 
-RealHttpReplyMessage* HttpResponsePraser::praseHttpResponse(cPacket *msg)
+RealHttpReplyMessage* HttpResponsePraser::praseHttpResponse(cPacket *msg, Protocol_Type protocolType)
 {
     ByteArrayMessage *byMsg = check_and_cast<ByteArrayMessage*>(msg);
     size_t bufLength = byMsg->getByteLength();
     char *buf = new char[bufLength];
     byMsg->getByteArray().copyDataToBuffer(buf, bufLength, 0);
+//    buf[bufLength] = '\0';
 
-    EV << "HTTP Response to parse ByteLength is:" << bufLength << endl;
-    EV << "HTTP Response to parse ByteArray is:" << buf << endl;
+    EV_DEBUG_NOMODULE << "HTTP Response to parse ByteLength is:" << bufLength << endl;
+    EV_DEBUG_NOMODULE << "HTTP Response to parse ByteArray is:" << buf << endl;
 
     //--modified by wangqian, 2012-10-23
     /*
-     * check if this response message contains message header
-     *      if it contains message header, it's a start of response message, then try to parse it and check if it's a complete message
-     *          if it's a complete message, return the httpResponse object
-     *          else, wait for the coming messages contain the else message body
-     *      else, it's a message contains the else message body of the message received earlier
+     * when deflate http header, use "\r\n\r\n" is not captable, use response state to decide whether finish parsing http header is better
      */
-    if (strstr(buf, "\r\n\r\n") != NULL)
+            /*
+             * check if this response message contains message header
+             *      if it contains message header, it's a start of response message, then try to parse it and check if it's a complete message
+             *          if it's a complete message, return the httpResponse object
+             *          else, wait for the coming messages contain the else message body
+             *      else, it's a message contains the else message body of the message received earlier
+             */
+        //    if (strstr(buf, "\r\n\r\n") != NULL)
+    if (get_response_state() != HEADER_COMPLETE)
     {
-        EV << "Start parse a new http response. message name is " << msg->getName() << endl;
+        EV_DEBUG_NOMODULE << "Start parse a new http response. message name is " << msg->getName() << endl;
         httpResponse->setName(msg->getName());
         httpResponse->setSentFrom(msg->getSenderModule(), msg->getSenderGateId(), msg->getSendingTime());
 
-        /*size_t nread = */http_parser_execute(pResponseParser, &ResponsePraser::parserCallback, const_cast<const char*>(buf), bufLength);
-    //
-    //    evbuffer_drain(input, nread);
-    //    http_errno htperr = HTTP_PARSER_ERRNO(response_htp_);
-    //    if (htperr == HPE_OK)
-    //    {
-    //        return 0;
-    //    }
-    //    else
-    //    {
-    //        if (ENABLE_LOG)
-    //        {
-    //            LOG(INFO) << "Downstream HTTP parser failure: " << "(" << http_errno_name(htperr) << ") "
-    //                    << http_errno_description(htperr);
-    //        }
-    //        return SHRPX_ERR_HTTP_PARSE;
-    //    }
+        switch(protocolType)
+        {
+            case HTTP:
+                http_parser_execute(pResponseParser, &ResponsePraser::parserCallback, const_cast<const char*>(buf), bufLength);
+                break;
+            case SPDY_ZLIB_HTTP:
+                spdyParser(const_cast<const char*>(buf), bufLength);
+                break;
+            case SPDY_HEADER_BLOCK:
+                http_parser_execute(pResponseParser, &ResponsePraser::parserCallback, const_cast<const char*>(buf), bufLength);
+                break;
+            case HTTPNF:
+                http_parser_execute(pResponseParser, &ResponsePraser::parserCallback, const_cast<const char*>(buf), bufLength);
+                break;
+            default:
+                delete[] buf;
+                delete msg;
+                throw cRuntimeError("Invalid Application protocol: %d", protocolType);
+        }
 
+        http_errno htperr = HTTP_PARSER_ERRNO(pResponseParser);
+        if (htperr == HPE_OK)
+        {
+            EV_DEBUG_NOMODULE << "Finish prasing http response message" << endl;
+        }
+        else
+        {
+            EV_ERROR_NOMODULE << "HTTP response parser failure: " << "(" << http_errno_name(htperr) << ") "
+                    << http_errno_description(htperr) << endl;
+        }
     }
     else
     {
+        EV_DEBUG_NOMODULE << "Continue parse a parsed http response. message name is " << msg->getName() << endl;
         std::string payload;
         payload.assign(httpResponse->payload());
         payload.append(buf, bufLength);
@@ -250,14 +273,14 @@ RealHttpReplyMessage* HttpResponsePraser::praseHttpResponse(cPacket *msg)
 
         recv_body_length += bufLength;
 
-//        EV << "payload add is: " << buf << endl;
+//        EV_DEBUG_NOMODULE << "payload add is: " << buf << endl;
     }
 
-//    EV << "payload now is:" << httpResponse->payload() << endl;
-    EV << "payload length now is :" << recv_body_length << endl;
-    EV << "httpResponse bytelength is: " << httpResponse->getByteLength() << endl;
+//    EV_DEBUG_NOMODULE << "payload now is:" << httpResponse->payload() << endl;
+    EV_DEBUG_NOMODULE << "payload length now is :" << recv_body_length << endl;
+    EV_DEBUG_NOMODULE << "httpResponse bytelength is: " << httpResponse->getByteLength() << endl;
 
-
+    delete[] buf;
     delete msg;
 
     if (httpResponse->getByteLength() <= recv_body_length)
@@ -270,6 +293,93 @@ RealHttpReplyMessage* HttpResponsePraser::praseHttpResponse(cPacket *msg)
         return NULL;
     }
     //--modified end
+}
+
+void HttpResponsePraser::spdyParser(const char *data,size_t len)
+{
+    /*
+     * 1. get the deflated header length out from the received message
+     */
+
+    size_t defHeaderLen = 0;
+    std::string defHeaderLenString;
+    defHeaderLenString.assign(data, 3);
+    std::istringstream defHeaderLenStream(defHeaderLenString);
+    defHeaderLenStream >> std::setbase(16) >> defHeaderLen;
+
+    /*
+     * 2. inflate the header depending on the length
+     */
+    spdylay_zlib inflater;
+    int rv = spdylay_zlib_inflate_hd_init(&inflater, SPDYLAY_PROTO_SPDY3);
+
+    if (rv != 0)
+    {
+        EV_ERROR_NOMODULE << "spdylay_zlib_inflate_hd_init failed!" << endl;
+    }
+
+    spdylay_buffer spdyBuf;
+    spdylay_buffer_init(&spdyBuf, 4096);
+
+    ssize_t framelen;
+
+    uint8_t *uCharBuf = new uint8_t[defHeaderLen];
+
+    for (size_t i = 0; i < defHeaderLen; i++)
+    {
+        uCharBuf[i] = data[i+3] + 128;
+    }
+
+    framelen = spdylay_zlib_inflate_hd(&inflater, &spdyBuf, uCharBuf, defHeaderLen);
+
+    if (framelen < 0)
+    {
+        delete[] uCharBuf;
+        spdylay_zlib_inflate_free(&inflater);
+        if (framelen == SPDYLAY_ERR_ZLIB)
+        {
+            throw cRuntimeError("spdylay_zlib_deflate_hd get Zlib error!");
+        }
+    }
+    else
+    {
+        /*
+         * 3. assign the inflated header to the http message to parse
+         */
+        uint8_t *infBuf = new uint8_t[framelen];
+        spdylay_buffer_serialize(&spdyBuf, infBuf);
+
+        size_t bufLength = len - 3 - defHeaderLen + framelen;
+        std::string buf;
+        buf.assign((char *)infBuf, framelen);
+
+        EV_DEBUG_NOMODULE << "header length before inflate is: " << defHeaderLen << endl;
+//        EV_DEBUG_NOMODULE << "header before inflate is: " << &data[3] << endl;
+//        EV_DEBUG_NOMODULE << "header before inflate is: " << uCharBuf << endl;
+        EV_DEBUG_NOMODULE << "header length after inflate is: " << framelen << endl;
+        EV_DEBUG_NOMODULE << "header after inflate is: " << infBuf << endl;
+
+        delete[] infBuf;
+        delete[] uCharBuf;
+        spdylay_zlib_inflate_free(&inflater);
+
+        /*
+         * 4. add body back to the response message to form the original http message
+         */
+        buf.append(&data[3+defHeaderLen], len - 3 - defHeaderLen);
+        EV_DEBUG_NOMODULE << "add body is: ";
+        for (size_t i = 0; i < len - 3 - defHeaderLen; i++)
+        {
+            EV << data[3+defHeaderLen+i];
+        }
+        EV <<  endl;
+        EV_DEBUG_NOMODULE << "body length is: " << len - 3 - defHeaderLen << endl;
+
+        EV_DEBUG_NOMODULE << "http buf to prase is: " << buf.c_str() << endl;
+        EV_DEBUG_NOMODULE << "http to prase length is: " << bufLength << endl;
+
+        http_parser_execute(pResponseParser, &ResponsePraser::parserCallback, buf.c_str(), bufLength);
+    }
 }
 
 void HttpResponsePraser::add_response_header(const std::string& name, const std::string& value)

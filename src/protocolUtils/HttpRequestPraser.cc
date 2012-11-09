@@ -8,8 +8,12 @@
 #include "HttpRequestPraser.h"
 #include "HttpNodeBase.h"
 #include "ByteArrayMessage.h"
+#include "HttpLogdefs.h"
 
 #include <cassert>
+#include <iomanip>
+
+#include "spdylay_zlib.h"
 
 namespace RequestPraser
 {
@@ -111,7 +115,7 @@ namespace RequestPraser
         std::string targetUrl;
         targetUrl.assign(parser->getRequestHeader("Host"));
         parser->httpRequest->setTargetUrl(targetUrl.c_str());
-        EV << "Set targetUrl from Host: "<< parser->httpRequest->targetUrl() << "\r\n";
+        EV_DEBUG_NOMODULE << "Set targetUrl from Host: "<< parser->httpRequest->targetUrl() << "\r\n";
 
         parser->httpRequest->setBadRequest(false);
         return 0;
@@ -149,36 +153,134 @@ HttpRequestPraser::~HttpRequestPraser()
     pRequestParser = NULL;
 }
 
-RealHttpRequestMessage* HttpRequestPraser::praseHttpRequest(cPacket *msg)
+RealHttpRequestMessage* HttpRequestPraser::praseHttpRequest(cPacket *msg, Protocol_Type protocolType)
 {
     ByteArrayMessage *byMsg = check_and_cast<ByteArrayMessage*>(msg);
     size_t bufLength = byMsg->getByteLength();
     char *buf = new char[bufLength];
     byMsg->getByteArray().copyDataToBuffer(buf, bufLength, 0);
+//    buf[bufLength] = '\0';
 
     httpRequest->setName(msg->getName());
     httpRequest->setSentFrom(msg->getSenderModule(), msg->getSenderGateId(), msg->getSendingTime());
 
-    /*size_t nread = */http_parser_execute(pRequestParser, &RequestPraser::parserCallback, const_cast<const char*>(buf), bufLength);
-//
-//    evbuffer_drain(input, nread);
-//    http_errno htperr = HTTP_PARSER_ERRNO(request_htp_);
-//    if (htperr == HPE_OK)
-//    {
-//        return 0;
-//    }
-//    else
-//    {
-//        if (ENABLE_LOG)
-//        {
-//            LOG(INFO) << "Downstream HTTP parser failure: " << "(" << http_errno_name(htperr) << ") "
-//                    << http_errno_description(htperr);
-//        }
-//        return SHRPX_ERR_HTTP_PARSE;
-//    }
+    switch(protocolType)
+    {
+        case HTTP:
+            http_parser_execute(pRequestParser, &RequestPraser::parserCallback, const_cast<const char*>(buf), bufLength);
+            break;
+        case SPDY_ZLIB_HTTP:
+            spdyParser(const_cast<const char*>(buf), bufLength);
+            break;
+        case SPDY_HEADER_BLOCK:
+            http_parser_execute(pRequestParser, &RequestPraser::parserCallback, const_cast<const char*>(buf), bufLength);
+            break;
+        case HTTPNF:
+            http_parser_execute(pRequestParser, &RequestPraser::parserCallback, const_cast<const char*>(buf), bufLength);
+            break;
+        default:
+            delete[] buf;
+            delete msg;
+            throw cRuntimeError("Invalid Application protocol: %d", protocolType);
+    }
 
+
+    http_errno htperr = HTTP_PARSER_ERRNO(pRequestParser);
+    if (htperr == HPE_OK)
+    {
+        EV_DEBUG_NOMODULE << "Finish prasing http response message" << endl;
+    }
+    else
+    {
+        EV_ERROR_NOMODULE << "HTTP response parser failure: " << "(" << http_errno_name(htperr) << ") "
+                << http_errno_description(htperr) << endl;
+    }
+
+    delete[] buf;
     delete msg;
     return httpRequest;
+}
+
+void HttpRequestPraser::spdyParser(const char *data,size_t len)
+{
+    /*
+     * 1. get the deflated header length out from the received message
+     */
+
+    size_t defHeaderLen = 0;
+    std::string defHeaderLenString;
+    defHeaderLenString.assign(data, 3);
+    std::istringstream defHeaderLenStream(defHeaderLenString);
+    defHeaderLenStream >> std::setbase(16) >> defHeaderLen;
+
+    /*
+     * 2. inflate the header depending on the length
+     */
+    spdylay_zlib inflater;
+    int rv = spdylay_zlib_inflate_hd_init(&inflater, SPDYLAY_PROTO_SPDY3);
+
+    if (rv != 0)
+    {
+        EV_ERROR_NOMODULE << "spdylay_zlib_inflate_hd_init failed!" << endl;
+    }
+
+    spdylay_buffer spdyBuf;
+    spdylay_buffer_init(&spdyBuf, 4096);
+
+    ssize_t framelen;
+
+    uint8_t *uCharBuf = new uint8_t[defHeaderLen];
+
+//    EV_DEBUG_NOMODULE << "header before inflate is as char: ";
+    for (size_t i = 0; i < defHeaderLen; i++)
+    {
+        uCharBuf[i] = data[i+3] + 128;
+//        EV << data[i+3];
+    }
+//    EV << endl;
+
+//    memcpy(uCharBuf, &data[3], defHeaderLen);
+
+    framelen = spdylay_zlib_inflate_hd(&inflater, &spdyBuf, uCharBuf, defHeaderLen);
+
+    if (framelen < 0)
+    {
+        delete[] uCharBuf;
+        spdylay_zlib_inflate_free(&inflater);
+        if (framelen == SPDYLAY_ERR_ZLIB)
+        {
+            throw cRuntimeError("spdylay_zlib_deflate_hd get Zlib error!");
+        }
+    }
+    else
+    {
+        /*
+         * 3. assign the inflated header to the http message to parse
+         */
+        uint8_t *infBuf = new uint8_t[framelen];
+        spdylay_buffer_serialize(&spdyBuf, infBuf);
+
+        size_t bufLength = len - 3 - defHeaderLen + framelen;
+        std::string buf;
+        buf.assign((char *)infBuf, framelen);
+
+        EV_DEBUG_NOMODULE << "header length before inflate is: " << defHeaderLen << endl;
+//        EV_DEBUG_NOMODULE << "header before inflate is: " << (char *)(data + 3) << endl;
+//        EV_DEBUG_NOMODULE << "header before inflate is: " << uCharBuf << endl;
+        EV_DEBUG_NOMODULE << "header length after inflate is: " << framelen << endl;
+        EV_DEBUG_NOMODULE << "header after inflate is: " << infBuf << endl;
+
+        delete[] infBuf;
+        delete[] uCharBuf;
+        spdylay_zlib_inflate_free(&inflater);
+
+        /*
+         * 4. add body back to the request message to form the original http message
+         */
+        buf.append(&data[3+defHeaderLen], len - 3 - defHeaderLen);
+
+        http_parser_execute(pRequestParser, &RequestPraser::parserCallback, buf.c_str(), bufLength);
+    }
 }
 
 void HttpRequestPraser::add_request_header(const std::string& name, const std::string& value)

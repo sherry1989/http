@@ -13,6 +13,7 @@ extern "C" {
 }
 
 #include "httpProtocol.h"
+#include "ProtocolTypeDef.h"
 
 #include <stdint.h>
 
@@ -30,7 +31,9 @@ class HttpRequestPraser
         HttpRequestPraser();
         virtual ~HttpRequestPraser();
 
-        RealHttpRequestMessage* praseHttpRequest(cPacket *msg);
+        RealHttpRequestMessage* praseHttpRequest(cPacket *msg, Protocol_Type protocolType);
+
+        void spdyParser(const char *data,size_t len);
 
         void add_request_header(const std::string& name, const std::string& value);
 

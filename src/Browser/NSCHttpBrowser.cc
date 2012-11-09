@@ -21,7 +21,13 @@
 #include "ByteArrayMessage.h"
 #include "HttpResponsePraser.h"
 
+#include "HttpRequestPraser.h"
+
 #include <stdexcept>
+#include <iomanip>
+#include <memory.h>
+
+#include "spdylay_zlib.h"
 
 //redefine PipeSockData as NSCSockData
 struct NSCSockData :public PipeSockData
@@ -172,7 +178,7 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
     }
     //--modified end
 
-    cPacket *prasedMsg = sockdata->praser->praseHttpResponse(msg);
+    cPacket *prasedMsg = sockdata->praser->praseHttpResponse(msg, protocolType);
 
     //--added end
 
@@ -184,7 +190,8 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
      */
     if (prasedMsg != NULL)
     {
-        HttpContentType contentType = pSvrSupportDetect->setSvrSupportForSock(sockdata, prasedMsg);
+        HttpContentType contentType = CT_UNKNOWN;
+        contentType = pSvrSupportDetect->setSvrSupportForSock(sockdata, prasedMsg);
 
         handleDataMessage(prasedMsg);
 
@@ -524,16 +531,32 @@ void NSCHttpBrowser::sendMessage(TCPSocket *socket, HttpRequestMessage *req)
 
             std::string resByteArray = formatByteRequestMessage(req);
 
-            sendBytes = resByteArray.length() + 1;
+            sendBytes = resByteArray.length();
 
             char *ptr = new char[sendBytes];
             ptr[0] = '\0';
-            strcpy(ptr, resByteArray.c_str());
+            //BUGBUGBUG
+            memcpy(ptr, resByteArray.c_str(), sendBytes);
             byMsg->getByteArray().assignBuffer(ptr, sendBytes);
             byMsg->setByteLength(sendBytes);
 
+//            delete[] ptr;
+
+            EV_DEBUG << "Send ByteArray. SendBytes are" << resByteArray << ". " << endl;
+            EV_DEBUG << "Send ByteArray. Bytelength is" << sendBytes << ". " << endl;
+
             sendMsg = dynamic_cast<cMessage*>(byMsg);
             socket->send(sendMsg);
+
+//            //#################   added for debug, should be deleted
+//            HttpRequestPraser *praser = new HttpRequestPraser();
+//
+//            cPacket *prasedMsg = praser->praseHttpRequest(dynamic_cast<cPacket*>(sendMsg), protocolType);
+//
+//            EV_DEBUG << "try to prase the sendmsg " << prasedMsg->getName() << ", kind=" << prasedMsg->getKind() << endl;
+//            //#################   added end
+
+
             break;
         }
 
@@ -580,11 +603,11 @@ std::string NSCHttpBrowser::formatByteRequestMessage(HttpRequestMessage *httpReq
         case HTTP:
             reqHeader = formatHttpRequestMessageHeader(realHttpRequest);
             break;
-        case SPDY:
-            reqHeader = formatSpdyRequestMessageHeader(realHttpRequest);
+        case SPDY_ZLIB_HTTP:
+            reqHeader = formatSpdyZlibHttpRequestMessageHeader(realHttpRequest);
             break;
-        case HTTPSM:
-            reqHeader = formatHttpSMRequestMessageHeader(realHttpRequest);
+        case SPDY_HEADER_BLOCK:
+            reqHeader = formatSpdyZlibHeaderBlockRequestMessageHeader(realHttpRequest);
             break;
         case HTTPNF:
             reqHeader = formatHttpNFRequestMessageHeader(realHttpRequest);
@@ -700,14 +723,22 @@ std::string NSCHttpBrowser::formatHttpRequestMessageHeader(const RealHttpRequest
      * Connection = "Connection" ":" 1#(connection-token)
        connection-token  = token
      */
-    if (httpRequest->keepAlive())
+    //--modified by wangqian, 2012-11-07
+    /*
+     * the Connection headers are not valid and MUST not be send when use SPDY formed fream and use the zlib dictionary
+     */
+    if (protocolType == HTTP)
     {
-        str << "Connection: Keep-Alive\r\n";
+        if (httpRequest->keepAlive())
+        {
+            str << "Connection: Keep-Alive\r\n";
+        }
+        else
+        {
+            str << "Connection: close\r\n";
+        }
     }
-    else
-    {
-        str << "Connection: close\r\n";
-    }
+    //--modified end
 
     /** 2.3 Date */
     /*
@@ -946,12 +977,12 @@ std::string NSCHttpBrowser::formatHttpRequestMessageHeader(const RealHttpRequest
     if (strcmp(httpRequest->host(),"") != 0)
     {
       str << "Host: "<< httpRequest->host() << "\r\n";
-      EV << "host not null Set Host: "<< httpRequest->host() << "\r\n";
+      EV_DEBUG << "host not null Set Host: "<< httpRequest->host() << "\r\n";
     }
     else
     {
       str << "Host: "<< httpRequest->targetUrl() << "\r\n";
-      EV << "Set Host: "<< httpRequest->targetUrl() << "\r\n";
+      EV_DEBUG << "Set Host: "<< httpRequest->targetUrl() << "\r\n";
     }
 
     /** 3.9 If-Match */
@@ -1240,16 +1271,89 @@ std::string NSCHttpBrowser::formatHttpRequestMessageHeader(const RealHttpRequest
     return str.str();
 }
 
-/** Format a Request message to HTTP Request Message Header */
-std::string NSCHttpBrowser::formatSpdyRequestMessageHeader(const RealHttpRequestMessage *httpRequest)
+/** Deflate a HTTP Request message header using the Name-Value zlib dictionary */
+std::string NSCHttpBrowser::formatSpdyZlibHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest)
 {
-    std::ostringstream str;
+    std::string reqHeader = formatHttpRequestMessageHeader(httpRequest);
 
-    return str.str();
+    spdylay_zlib deflater;
+
+    int rv = spdylay_zlib_deflate_hd_init(&deflater, 1, SPDYLAY_PROTO_SPDY3);
+
+    if (rv != 0)
+    {
+        EV_ERROR << "spdylay_zlib_deflate_hd_init failed!" << endl;
+    }
+
+    uint8_t *buf = NULL, *nvbuf = NULL;
+    size_t buflen = 0, nvbuflen = 0;
+
+    nvbuf = (uint8_t *)reqHeader.c_str();
+    nvbuflen = reqHeader.length();
+
+    buflen = spdylay_zlib_deflate_hd_bound(&deflater, nvbuflen);
+    buf = new uint8_t[buflen];
+
+    EV_DEBUG << "header length bound to deflate is: " << buflen << endl;
+
+    ssize_t framelen;
+    framelen = spdylay_zlib_deflate_hd(&deflater, buf, buflen, nvbuf, nvbuflen);
+
+    EV_DEBUG << "header length before deflate is: " << nvbuflen << endl;
+    EV_DEBUG << "header before deflate is: " << nvbuf << endl;
+    EV_DEBUG << "header length after deflate is: " << framelen << endl;
+//    EV_DEBUG << "header after deflate is: " << buf << endl;
+
+    if (framelen == SPDYLAY_ERR_ZLIB)
+    {
+        throw cRuntimeError("spdylay_zlib_deflate_hd get Zlib error!");
+    }
+    else
+    {
+        std::ostringstream zlibReqHeader;
+
+        //24 bit header length
+        zlibReqHeader << std::setbase(16) << std::setw(3) << framelen ;
+
+        char *charBuf = new char[framelen];
+
+        EV_DEBUG << "header after deflate is as char: ";
+        for (ssize_t i = 0; i < framelen; i++)
+        {
+            charBuf[i] = buf[i] - 128;
+            EV << charBuf[i];
+        }
+        EV << endl;
+
+//        memcpy(charBuf, buf, framelen);
+
+//        EV_DEBUG << "header after deflate is as char: " << charBuf << endl;
+
+        //zlib deflate header
+//        zlibReqHeader << std::setw(framelen) << buf;
+//        zlibReqHeader << std::setw(framelen) << charBuf;
+//        zlibReqHeader << charBuf;
+
+        std::string zlibReqHeaderStr;
+        zlibReqHeaderStr.assign(charBuf, framelen);
+
+        delete[] buf;
+        delete[] charBuf;
+
+        zlibReqHeader << zlibReqHeaderStr;
+
+//        EV_DEBUG << "zlibReqHeader is: " << zlibReqHeader.str() << endl;
+
+        EV_DEBUG << "zlibReqHeader length is: " << zlibReqHeader.str().length() << endl;
+
+        spdylay_zlib_deflate_free(&deflater);
+
+        return zlibReqHeader.str();
+    }
 }
 
-/** Format a Request message to HTTP Request Message Header */
-std::string NSCHttpBrowser::formatHttpSMRequestMessageHeader(const RealHttpRequestMessage *httpRequest)
+/** Format a Request message header to zlib-deflated SPDY header block */
+std::string NSCHttpBrowser::formatSpdyZlibHeaderBlockRequestMessageHeader(const RealHttpRequestMessage *httpRequest)
 {
     std::ostringstream str;
 

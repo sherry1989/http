@@ -18,6 +18,10 @@
 #include "ByteArrayMessage.h"
 #include <algorithm>
 
+#include <iomanip>
+
+#include "spdylay_zlib.h"
+
 Define_Module(NSCHttpServer);
 
 NSCHttpServer::NSCHttpServer()
@@ -100,7 +104,7 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
     //--added by wangqian, 2012-10-17
     HttpRequestPraser *praser = new HttpRequestPraser();
 
-    cPacket *prasedMsg = praser->praseHttpRequest(msg);
+    cPacket *prasedMsg = praser->praseHttpRequest(msg, protocolType);
 
     //--added end
 
@@ -183,6 +187,7 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
         }
     }
     delete prasedMsg; // Delete the received message here. Must not be deleted in the handler!
+    delete praser;
 }
 
 void NSCHttpServer::handleSelfMessages(cMessage *msg)
@@ -410,9 +415,11 @@ void NSCHttpServer::sendMessage(TCPSocket *socket, HttpReplyMessage *reply)
 
             char *ptr = new char[sendBytes];
             ptr[0] = '\0';
-            strncpy(ptr, resByteArray.c_str(), sendBytes);
+            memcpy(ptr, resByteArray.c_str(), sendBytes);
             byMsg->getByteArray().assignBuffer(ptr, sendBytes);
             byMsg->setByteLength(sendBytes);
+
+//            delete[] ptr;
 
             EV_DEBUG << "Send ByteArray. SendBytes are" << resByteArray << ". " << endl;
             EV_DEBUG << "Send ByteArray. Bytelength is" << sendBytes << ". " << endl;
@@ -480,11 +487,11 @@ std::string NSCHttpServer::formatByteResponseMessage(HttpReplyMessage *httpRespo
         case HTTP:
             resHeader = formatHttpResponseMessageHeader(realhttpResponse);
             break;
-        case SPDY:
-            resHeader = formatSpdyResponseMessageHeader(realhttpResponse);
+        case SPDY_ZLIB_HTTP:
+            resHeader = formatSpdyZlibHttpResponseMessageHeader(realhttpResponse);
             break;
-        case HTTPSM:
-            resHeader = formatHttpSMResponseMessageHeader(realhttpResponse);
+        case SPDY_HEADER_BLOCK:
+            resHeader = formatSpdyZlibHeaderBlockResponseMessageHeader(realhttpResponse);
             break;
         case HTTPNF:
             resHeader = formatHttpNFResponseMessageHeader(realhttpResponse);
@@ -608,14 +615,22 @@ std::string NSCHttpServer::formatHttpResponseMessageHeader(const RealHttpReplyMe
      * Connection = "Connection" ":" 1#(connection-token)
        connection-token  = token
      */
-    if (httpResponse->keepAlive())
+    //--modified by wangqian, 2012-11-07
+    /*
+     * the Connection headers are not valid and MUST not be send when use SPDY formed fream and use the zlib dictionary
+     */
+    if (protocolType == HTTP)
     {
-        str << "Connection: Keep-Alive\r\n";
+        if (httpResponse->keepAlive())
+        {
+            str << "Connection: Keep-Alive\r\n";
+        }
+        else
+        {
+            str << "Connection: close\r\n";
+        }
     }
-    else
-    {
-        str << "Connection: close\r\n";
-    }
+    //--modified end
 
     /** 2.3 Date */
     /*
@@ -1054,16 +1069,87 @@ std::string NSCHttpServer::formatHttpResponseMessageHeader(const RealHttpReplyMe
     return str.str();
 }
 
-/** Format a response message to HTTP Response Message Header */
-std::string NSCHttpServer::formatSpdyResponseMessageHeader(const RealHttpReplyMessage *httpResponse)
+/** Deflate a HTTP Response message header using the Name-Value zlib dictionary */
+std::string NSCHttpServer::formatSpdyZlibHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse)
 {
-    std::ostringstream str;
+    std::string resHeader = formatHttpResponseMessageHeader(httpResponse);
 
-    return str.str();
+    spdylay_zlib deflater;
+
+    int rv = spdylay_zlib_deflate_hd_init(&deflater, 1, SPDYLAY_PROTO_SPDY3);
+
+    if (rv != 0)
+    {
+        EV_ERROR << "spdylay_zlib_deflate_hd_init failed!" << endl;
+    }
+
+    uint8_t *buf = NULL, *nvbuf = NULL;
+    size_t buflen = 0, nvbuflen = 0;
+
+    nvbuf = (uint8_t *)resHeader.c_str();
+    nvbuflen = resHeader.length();
+
+    buflen = spdylay_zlib_deflate_hd_bound(&deflater, nvbuflen);
+    buf = new uint8_t[buflen];
+
+    ssize_t framelen;
+    framelen = spdylay_zlib_deflate_hd(&deflater, buf, buflen, nvbuf, nvbuflen);
+
+    EV_DEBUG << "header length before deflate is: " << nvbuflen << endl;
+    EV_DEBUG << "header before deflate is: " << nvbuf << endl;
+    EV_DEBUG << "header length after deflate is: " << framelen << endl;
+//    EV_DEBUG << "header after deflate is: " << buf << endl;
+
+    if (framelen == SPDYLAY_ERR_ZLIB)
+    {
+        throw cRuntimeError("spdylay_zlib_deflate_hd get Zlib error!");
+    }
+    else
+    {
+        std::ostringstream zlibResHeader;
+
+        //24 bit header length
+        zlibResHeader << std::setbase(16) << std::setw(3) << framelen ;
+
+        char *charBuf = new char[framelen];
+
+        EV_DEBUG << "header after deflate is as char: ";
+        for (ssize_t i = 0; i < framelen; i++)
+        {
+            charBuf[i] = buf[i] - 128;
+            EV << charBuf[i];
+        }
+        EV << endl;
+
+//        memcpy(charBuf, buf, framelen);
+
+//        EV_DEBUG << "header after deflate is as char: " << charBuf << endl;
+
+        //zlib deflate header
+//        zlibResHeader << std::setw(framelen) << buf;
+//        zlibResHeader << std::setw(framelen) << charBuf;
+//        zlibResHeader << charBuf;
+
+        std::string zlibResHeaderStr;
+        zlibResHeaderStr.assign(charBuf, framelen);
+
+        delete[] buf;
+        delete[] charBuf;
+
+        zlibResHeader << zlibResHeaderStr;
+
+//        EV_DEBUG << "zlibReqHeader is: " << zlibResHeader.str() << endl;
+
+        EV_DEBUG << "zlibReqHeader length is: " << zlibResHeader.str().length() << endl;
+
+        spdylay_zlib_deflate_free(&deflater);
+
+        return zlibResHeader.str();
+    }
 }
 
-/** Format a response message to HTTP Response Message Header */
-std::string NSCHttpServer::formatHttpSMResponseMessageHeader(const RealHttpReplyMessage *httpResponse)
+/** Format a response message header to zlib-deflated SPDY header block */
+std::string NSCHttpServer::formatSpdyZlibHeaderBlockResponseMessageHeader(const RealHttpReplyMessage *httpResponse)
 {
     std::ostringstream str;
 

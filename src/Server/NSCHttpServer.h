@@ -68,11 +68,11 @@ class NSCHttpServer : public HttpServer
         /** Format a response message to HTTP Response Message Header */
         std::string formatHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
 
-        /** Format a response message to SPDY Response Message Header */
-        std::string formatSpdyResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
+        /** Deflate a HTTP Response message header using the Name-Value zlib dictionary */
+        std::string formatSpdyZlibHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
 
-        /** Format a response message to HTTP S+M Response Message Header */
-        std::string formatHttpSMResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
+        /** Format a response message header to zlib-deflated SPDY header block */
+        std::string formatSpdyZlibHeaderBlockResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
 
         /** Format a response message to HTTPNF Response Message Header */
         std::string formatHttpNFResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
