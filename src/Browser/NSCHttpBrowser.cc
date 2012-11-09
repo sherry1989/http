@@ -258,7 +258,7 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
             }
             else
             {
-                EV_DEBUG << "Server supporting not recognised." << endl;
+                EV_ERROR << "Server supporting not recognised." << endl;
             }
         }
 
@@ -268,12 +268,16 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
             EV_DEBUG << "Received last expected reply on this socket　and there is no resource need to request. Issing a close" << endl;
             socket->close();
         }
+        else
+        {
+            EV_DEBUG << "Cannot close a socket. sockdata pending now is " << sockdata->pending << endl;
+        }
 
         // Message deleted in handler - do not delete here!
     }
     else
     {
-
+        EV_DEBUG << "Need to wait for the following msgs" << endl;
     }
 }
 
@@ -367,12 +371,14 @@ void NSCHttpBrowser::submitToSocket(const char* moduleName, int connectPort, Htt
     {
         if ( (*iter)->getState() != TCPSocket::CONNECTED && (*iter)->getState() != TCPSocket::CONNECTING)
         {
+            EV_DEBUG << "Delete undeleted socket from server " << svrName.c_str() << ". Socket state is" << (*iter)->getState() << endl;
             sockCollection.removeSocket(*iter);
             delete *iter;
             sockCollectionMap[svrName].erase(iter++);
         }
         else
         {
+            EV_DEBUG << "Don't need to delete socket from server " << svrName.c_str() << ". Socket state is" << (*iter)->getState() << endl;
             iter++;
         }
     }
