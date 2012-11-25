@@ -62,19 +62,19 @@ class NSCHttpServer : public HttpServer
          * Format an application TCP_TRANSFER_BYTESTREAM response message which can be sent though NSC TCP depence on the application layer protocol
          * the protocol type can be HTTP \ SPDY \ HTTPS+M \ HTTPNF
          */
-        std::string formatByteResponseMessage(HttpReplyMessage *httpResponse);
+        virtual std::string formatByteResponseMessage(HttpReplyMessage *httpResponse);
 
         /** Format a response message to HTTP Response Message Header */
-        std::string formatHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
+        virtual std::string formatHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
 
         /** Deflate a HTTP Response message header using the Name-Value zlib dictionary */
-        std::string formatSpdyZlibHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
+        virtual std::string formatSpdyZlibHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
 
         /** Format a response message header to zlib-deflated SPDY header block */
-        std::string formatSpdyZlibHeaderBlockResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
+        virtual std::string formatSpdyZlibHeaderBlockResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
 
         /** Format a response message to HTTPNF Response Message Header */
-        std::string formatHttpNFResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
+        virtual std::string formatHttpNFResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
 
         void handleSelfDelayedReplyMessage(cMessage *msg);
 
@@ -99,6 +99,8 @@ class NSCHttpServer : public HttpServer
         TCPSocket_ReplyInfo_Map replyInfoPerSocket;
 
         Protocol_Type protocolType;
+
+        RealHttpReplyMessage *changeReplyToReal(HttpReplyMessage *httpResponse);
 };
 
 #endif

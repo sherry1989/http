@@ -112,16 +112,16 @@ class NSCHttpBrowser : public HttpBrowser
         std::string formatByteRequestMessage(HttpRequestMessage *httpRequest);
 
         /** Format a Request message to HTTP Request Message Header */
-        std::string formatHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
+        virtual std::string formatHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
 
         /** Deflate a HTTP Request message header using the Name-Value zlib dictionary */
-        std::string formatSpdyZlibHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
+        virtual std::string formatSpdyZlibHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
 
         /** Format a Request message header to zlib-deflated SPDY header block */
-        std::string formatSpdyZlibHeaderBlockRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
+        virtual std::string formatSpdyZlibHeaderBlockRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
 
         /** Format a Request message to HTTPNF Request Message Header */
-        std::string formatHttpNFRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
+        virtual std::string formatHttpNFRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
 
     protected:
         /** @name Socket establishment and data submission */
@@ -133,6 +133,8 @@ class NSCHttpBrowser : public HttpBrowser
          */
         virtual void submitToSocket(const char* moduleName, int connectPort, HttpRequestQueue &queue);
         //@}
+
+        RealHttpRequestMessage *changeRequestToReal(HttpRequestMessage *httpRequest);
 
         /*
          * 指向各类策略基类的指针，用于调用不同的策略

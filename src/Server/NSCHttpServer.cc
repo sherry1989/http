@@ -16,6 +16,7 @@
 #include "NSCHttpServer.h"
 #include "HttpRequestPraser.h"
 #include "ByteArrayMessage.h"
+
 #include <algorithm>
 
 #include <iomanip>
@@ -107,7 +108,6 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
     EV_DEBUG << "Socket data arrived on connection " << connId << ". Message=" << prasedMsg->getName() << ", kind=" << prasedMsg->getKind() << endl;
 
     // call the message handler to process the message.
-    // change from cMessage to RealRealHttpReplyMessage to record the return of handleReceivedMessage
     HttpReplyMessage *reply = handleReceivedMessage(prasedMsg);
 
     if (reply!=NULL)
@@ -420,43 +420,7 @@ void NSCHttpServer::sendMessage(TCPSocket *socket, HttpReplyMessage *reply)
  */
 std::string NSCHttpServer::formatByteResponseMessage(HttpReplyMessage *httpResponse)
 {
-    RealHttpReplyMessage *realhttpResponse;
-    realhttpResponse = new RealHttpReplyMessage();
-
-    realhttpResponse->setAcceptRanges("none");
-    realhttpResponse->setAge(0);
-    realhttpResponse->setCacheControl("");
-    realhttpResponse->setContentEncoding("");
-    realhttpResponse->setContentLanguage("");
-    realhttpResponse->setContentLocation("");
-    realhttpResponse->setDate("");
-    realhttpResponse->setEtag("");
-    realhttpResponse->setExpires("");
-    realhttpResponse->setLastModified("");
-    realhttpResponse->setLocation("");
-    realhttpResponse->setPragma("");
-    realhttpResponse->setServer("");
-    realhttpResponse->setTransferEncoding("");
-    realhttpResponse->setVary("");
-    realhttpResponse->setVia("");
-    realhttpResponse->setXPoweredBy("");
-
-    realhttpResponse->setHeading(httpResponse->heading());
-    realhttpResponse->setOriginatorUrl(httpResponse->originatorUrl());
-    realhttpResponse->setTargetUrl(httpResponse->targetUrl());
-    realhttpResponse->setProtocol(httpResponse->protocol());
-    realhttpResponse->setSerial(httpResponse->serial());
-    realhttpResponse->setResult(httpResponse->result());
-    realhttpResponse->setContentType(httpResponse->contentType()); // Emulates the content-type header field
-    realhttpResponse->setKind(httpResponse->getKind());
-    realhttpResponse->setPayload(httpResponse->payload());
-    realhttpResponse->setKeepAlive(httpResponse->keepAlive());
-    realhttpResponse->setContentLength(std::max(httpResponse->getByteLength(), (int64_t)strlen(httpResponse->payload())));
-
-
-    delete httpResponse;
-    httpResponse = NULL;
-
+    RealHttpReplyMessage *realhttpResponse = changeReplyToReal(httpResponse);
     std::string resHeader;
 
     switch(protocolType)
@@ -1137,4 +1101,46 @@ std::string NSCHttpServer::formatHttpNFResponseMessageHeader(const RealHttpReply
     std::ostringstream str;
 
     return str.str();
+}
+
+RealHttpReplyMessage *NSCHttpServer::changeReplyToReal(HttpReplyMessage *httpResponse)
+{
+    RealHttpReplyMessage *realhttpResponse;
+    realhttpResponse = new RealHttpReplyMessage();
+
+    realhttpResponse->setRequestURI("");
+    realhttpResponse->setAcceptRanges("none");
+    realhttpResponse->setAge(0);
+    realhttpResponse->setCacheControl("");
+    realhttpResponse->setContentEncoding("");
+    realhttpResponse->setContentLanguage("");
+    realhttpResponse->setContentLocation("");
+    realhttpResponse->setDate("");
+    realhttpResponse->setEtag("");
+    realhttpResponse->setExpires("");
+    realhttpResponse->setLastModified("");
+    realhttpResponse->setLocation("");
+    realhttpResponse->setPragma("");
+    realhttpResponse->setServer("");
+    realhttpResponse->setTransferEncoding("");
+    realhttpResponse->setVary("");
+    realhttpResponse->setVia("");
+    realhttpResponse->setXPoweredBy("");
+
+    realhttpResponse->setHeading(httpResponse->heading());
+    realhttpResponse->setOriginatorUrl(httpResponse->originatorUrl());
+    realhttpResponse->setTargetUrl(httpResponse->targetUrl());
+    realhttpResponse->setProtocol(httpResponse->protocol());
+    realhttpResponse->setSerial(httpResponse->serial());
+    realhttpResponse->setResult(httpResponse->result());
+    realhttpResponse->setContentType(httpResponse->contentType()); // Emulates the content-type header field
+    realhttpResponse->setKind(httpResponse->getKind());
+    realhttpResponse->setPayload(httpResponse->payload());
+    realhttpResponse->setKeepAlive(httpResponse->keepAlive());
+    realhttpResponse->setContentLength(std::max(httpResponse->getByteLength(), (int64_t)strlen(httpResponse->payload())));
+
+    delete httpResponse;
+    httpResponse = NULL;
+
+    return realhttpResponse;
 }

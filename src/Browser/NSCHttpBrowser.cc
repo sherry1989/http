@@ -517,8 +517,9 @@ void NSCHttpBrowser::sendMessage(TCPSocket *socket, HttpRequestMessage *req)
 
 //            delete[] ptr;
 
-            EV_DEBUG << "Send ByteArray. SendBytes are" << resByteArray << ". " << endl;
-            EV_DEBUG << "Send ByteArray. Bytelength is" << sendBytes << ". " << endl;
+            EV_DEBUG << "Send ByteArray. MessageName is: " << byMsg->getName() << ". " << endl;
+            EV_DEBUG << "Send ByteArray. SendBytes are: " << resByteArray << ". " << endl;
+            EV_DEBUG << "Send ByteArray. Bytelength is: " << sendBytes << ". " << endl;
 
             sendMsg = dynamic_cast<cMessage*>(byMsg);
             socket->send(sendMsg);
@@ -546,30 +547,7 @@ void NSCHttpBrowser::sendMessage(TCPSocket *socket, HttpRequestMessage *req)
  */
 std::string NSCHttpBrowser::formatByteRequestMessage(HttpRequestMessage *httpRequest)
 {
-    RealHttpRequestMessage *realHttpRequest;
-    realHttpRequest = new RealHttpRequestMessage();
-
-    realHttpRequest->setAccept("");
-    realHttpRequest->setAcceptCharset("");
-    realHttpRequest->setAcceptEncoding("");
-    realHttpRequest->setAcceptLanguage("");
-    realHttpRequest->setHost("");
-    realHttpRequest->setIfModifiedSince("");
-    realHttpRequest->setIfNoneMatch("");
-    realHttpRequest->setReferer("");
-    realHttpRequest->setUserAgent("");
-    realHttpRequest->setTargetUrl(httpRequest->targetUrl());
-    realHttpRequest->setProtocol(httpRequest->protocol());
-    realHttpRequest->setHeading(httpRequest->heading());
-    realHttpRequest->setSerial(httpRequest->serial());
-    realHttpRequest->setByteLength(httpRequest->getByteLength());
-    realHttpRequest->setKeepAlive(httpRequest->keepAlive());
-    realHttpRequest->setBadRequest(httpRequest->badRequest());
-    realHttpRequest->setKind(httpRequest->getKind());
-    realHttpRequest->setPayload(httpRequest->payload());
-
-    delete httpRequest;
-    httpRequest = NULL;
+    RealHttpRequestMessage *realHttpRequest = changeRequestToReal(httpRequest);
 
     std::string reqHeader;
 
@@ -1341,4 +1319,33 @@ std::string NSCHttpBrowser::formatHttpNFRequestMessageHeader(const RealHttpReque
     return str.str();
 }
 
+RealHttpRequestMessage *NSCHttpBrowser::changeRequestToReal(HttpRequestMessage *httpRequest)
+{
+    RealHttpRequestMessage *realHttpRequest;
+    realHttpRequest = new RealHttpRequestMessage();
+
+    realHttpRequest->setAccept("");
+    realHttpRequest->setAcceptCharset("");
+    realHttpRequest->setAcceptEncoding("");
+    realHttpRequest->setAcceptLanguage("");
+    realHttpRequest->setHost("");
+    realHttpRequest->setIfModifiedSince("");
+    realHttpRequest->setIfNoneMatch("");
+    realHttpRequest->setReferer("");
+    realHttpRequest->setUserAgent("");
+    realHttpRequest->setTargetUrl(httpRequest->targetUrl());
+    realHttpRequest->setProtocol(httpRequest->protocol());
+    realHttpRequest->setHeading(httpRequest->heading());
+    realHttpRequest->setSerial(httpRequest->serial());
+    realHttpRequest->setByteLength(httpRequest->getByteLength());
+    realHttpRequest->setKeepAlive(httpRequest->keepAlive());
+    realHttpRequest->setBadRequest(httpRequest->badRequest());
+    realHttpRequest->setKind(httpRequest->getKind());
+    realHttpRequest->setPayload(httpRequest->payload());
+
+    delete httpRequest;
+    httpRequest = NULL;
+
+    return realHttpRequest;
+}
 
