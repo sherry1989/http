@@ -1,0 +1,19 @@
+#$O/%.o: %.cc $(COPTS_FILE)
+#	@$(MKPATH) $(dir $@)
+#	$(CXX) -c $(COPTS)  -std=c++0x -o $@ $<
+#STD        = -std=c++0x
+#CFLAGS =  -std=c++0x
+
+DEBUGFLAGS = -DDEBUG -g -D_GLIBCXX_DEBUG
+OPTFLAGS   = -O3 -DNDEBUG
+#WARN       = -Wall -Werror
+STD        = -std=c++0x
+CFLAGS   = $(DEBUG) $(OPT) $(WARN) $(STD)
+
+ifndef DEBUG
+OPT = $(OPTFLAGS)
+DEBUG = -g
+else
+OPT =
+DEBUG = $(DEBUGFLAGS)
+endif
