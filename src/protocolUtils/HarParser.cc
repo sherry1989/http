@@ -91,13 +91,19 @@ HarParser::HarParser()
                  */
                 pagedef << key << endl;
                 sitedef << key << ";";
-                for (unsigned int k = 0; k < responses[i].size(); ++k)
+                unsigned int k;
+                for (k = 0; k < responses[i].size(); ++k)
                 {
                     if (responses[i][k].key.find("content-length") != string::npos)
                     {
                         sitedef << responses[i][k].val << endl;
                         break;
                     }
+                }
+                //if cannot find some resources' content-length, use 0 to let the sitedef file has the right style.
+                if (k == responses[i].size())
+                {
+                    sitedef << "0" << endl;
                 }
 
                 break;
