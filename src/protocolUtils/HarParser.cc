@@ -27,7 +27,7 @@ HarParser::HarParser()
 
     files[0] = new char[20];
     files[0][0] = '\0';
-    strcpy(files[0], "www.baidu.com.har\0");
+    strcpy(files[0], "www.sina.com.cn.har\0");
 
     ParseHarFiles(n_files, files, &requests, &responses);
 
@@ -61,22 +61,38 @@ HarParser::HarParser()
                  */
                 EV_DEBUG_NOMODULE << "Initialize No." << i << "pair of headers, key in map is " << requests[i][j].val << endl;
 
+                string key = requests[i][j].val;
+
+                /*
+                 * if there is ";" in path, cannot simply use it as key
+                 * if do so, when parse the sitedef file, will get error
+                 * so just use the substring before first';' to be the key
+                 */
+                if (key.find(";") != string::npos)
+                {
+                    // Parse the key string on ;, and just use the substring before first';' to be the key
+                    cStringTokenizer tokenizer = cStringTokenizer(key.c_str(), ";");
+                    std::vector<std::string> res = tokenizer.asVector();
+                    key = res[0];
+                    EV_DEBUG_NOMODULE << "change key to " << key << endl;
+                }
+
                 EV_DEBUG_NOMODULE << "Request is" << endl;
                 OutputHeaderFrame(requests[i]);
-                requestMap.insert(make_pair(requests[i][j].val, requests[i]));
+                requestMap.insert(make_pair(key, requests[i]));
 
                 EV_DEBUG_NOMODULE << "Response is" << endl;
                 OutputHeaderFrame(responses[i]);
-                responseMap.insert(make_pair(requests[i][j].val, responses[i]));
+                responseMap.insert(make_pair(key, responses[i]));
 
                 /*
                  * generate sitedef file and the pagedef file
                  */
-                pagedef << requests[i][j].val << endl;
-                sitedef << requests[i][j].val << ";";
+                pagedef << key << endl;
+                sitedef << key << ";";
                 for (unsigned int k = 0; k < responses[i].size(); ++k)
                 {
-                    if (responses[i][k].key.find("content-length") != string::npos)
+                    if (responses[i][k].key.find("Content-Length") != string::npos)
                     {
                         sitedef << responses[i][k].val << endl;
                         break;
