@@ -27,6 +27,7 @@ HarParser::HarParser()
 
     files[0] = new char[20];
     files[0][0] = '\0';
+//    strcpy(files[0], "www.baidu.com.har\0");
     strcpy(files[0], "www.sina.com.cn.har\0");
 
     ParseHarFiles(n_files, files, &requests, &responses);
@@ -92,7 +93,7 @@ HarParser::HarParser()
                 sitedef << key << ";";
                 for (unsigned int k = 0; k < responses[i].size(); ++k)
                 {
-                    if (responses[i][k].key.find("Content-Length") != string::npos)
+                    if (responses[i][k].key.find("content-length") != string::npos)
                     {
                         sitedef << responses[i][k].val << endl;
                         break;
