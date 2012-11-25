@@ -42,6 +42,7 @@ packet RealHttpRequestMessage extends HttpRequestMessage
 packet RealHttpReplyMessage extends HttpReplyMessage
 {
     @omitGetVerb(true);
+    string requestURI = "";
     string acceptRanges = "none";
 	int age = 0;
 	string cacheControl = "";

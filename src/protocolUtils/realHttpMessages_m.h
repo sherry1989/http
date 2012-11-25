@@ -96,6 +96,7 @@ inline void doUnpacking(cCommBuffer *b, RealHttpRequestMessage& obj) {obj.parsim
  * packet RealHttpReplyMessage extends HttpReplyMessage
  * {
  *     @omitGetVerb(true);
+ *     string requestURI = "";
  *     string acceptRanges = "none";
  * 	int age = 0;
  * 	string cacheControl = "";
@@ -120,6 +121,7 @@ inline void doUnpacking(cCommBuffer *b, RealHttpRequestMessage& obj) {obj.parsim
 class RealHttpReplyMessage : public ::HttpReplyMessage
 {
   protected:
+    opp_string requestURI_var;
     opp_string acceptRanges_var;
     int age_var;
     opp_string cacheControl_var;
@@ -156,6 +158,8 @@ class RealHttpReplyMessage : public ::HttpReplyMessage
     virtual void parsimUnpack(cCommBuffer *b);
 
     // field getter/setter methods
+    virtual const char * requestURI() const;
+    virtual void setRequestURI(const char * requestURI);
     virtual const char * acceptRanges() const;
     virtual void setAcceptRanges(const char * acceptRanges);
     virtual int age() const;

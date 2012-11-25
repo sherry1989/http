@@ -439,6 +439,7 @@ Register_Class(RealHttpReplyMessage);
 
 RealHttpReplyMessage::RealHttpReplyMessage(const char *name, int kind) : HttpReplyMessage(name,kind)
 {
+    this->requestURI_var = "";
     this->acceptRanges_var = "none";
     this->age_var = 0;
     this->cacheControl_var = "";
@@ -478,6 +479,7 @@ RealHttpReplyMessage& RealHttpReplyMessage::operator=(const RealHttpReplyMessage
 
 void RealHttpReplyMessage::copy(const RealHttpReplyMessage& other)
 {
+    this->requestURI_var = other.requestURI_var;
     this->acceptRanges_var = other.acceptRanges_var;
     this->age_var = other.age_var;
     this->cacheControl_var = other.cacheControl_var;
@@ -501,6 +503,7 @@ void RealHttpReplyMessage::copy(const RealHttpReplyMessage& other)
 void RealHttpReplyMessage::parsimPack(cCommBuffer *b)
 {
     HttpReplyMessage::parsimPack(b);
+    doPacking(b,this->requestURI_var);
     doPacking(b,this->acceptRanges_var);
     doPacking(b,this->age_var);
     doPacking(b,this->cacheControl_var);
@@ -524,6 +527,7 @@ void RealHttpReplyMessage::parsimPack(cCommBuffer *b)
 void RealHttpReplyMessage::parsimUnpack(cCommBuffer *b)
 {
     HttpReplyMessage::parsimUnpack(b);
+    doUnpacking(b,this->requestURI_var);
     doUnpacking(b,this->acceptRanges_var);
     doUnpacking(b,this->age_var);
     doUnpacking(b,this->cacheControl_var);
@@ -542,6 +546,16 @@ void RealHttpReplyMessage::parsimUnpack(cCommBuffer *b)
     doUnpacking(b,this->vary_var);
     doUnpacking(b,this->via_var);
     doUnpacking(b,this->xPoweredBy_var);
+}
+
+const char * RealHttpReplyMessage::requestURI() const
+{
+    return requestURI_var.c_str();
+}
+
+void RealHttpReplyMessage::setRequestURI(const char * requestURI)
+{
+    this->requestURI_var = requestURI;
 }
 
 const char * RealHttpReplyMessage::acceptRanges() const
@@ -772,7 +786,7 @@ const char *RealHttpReplyMessageDescriptor::getProperty(const char *propertyname
 int RealHttpReplyMessageDescriptor::getFieldCount(void *object) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
-    return basedesc ? 18+basedesc->getFieldCount(object) : 18;
+    return basedesc ? 19+basedesc->getFieldCount(object) : 19;
 }
 
 unsigned int RealHttpReplyMessageDescriptor::getFieldTypeFlags(void *object, int field) const
@@ -802,8 +816,9 @@ unsigned int RealHttpReplyMessageDescriptor::getFieldTypeFlags(void *object, int
         FD_ISEDITABLE,
         FD_ISEDITABLE,
         FD_ISEDITABLE,
+        FD_ISEDITABLE,
     };
-    return (field>=0 && field<18) ? fieldTypeFlags[field] : 0;
+    return (field>=0 && field<19) ? fieldTypeFlags[field] : 0;
 }
 
 const char *RealHttpReplyMessageDescriptor::getFieldName(void *object, int field) const
@@ -815,6 +830,7 @@ const char *RealHttpReplyMessageDescriptor::getFieldName(void *object, int field
         field -= basedesc->getFieldCount(object);
     }
     static const char *fieldNames[] = {
+        "requestURI",
         "acceptRanges",
         "age",
         "cacheControl",
@@ -834,31 +850,32 @@ const char *RealHttpReplyMessageDescriptor::getFieldName(void *object, int field
         "via",
         "xPoweredBy",
     };
-    return (field>=0 && field<18) ? fieldNames[field] : NULL;
+    return (field>=0 && field<19) ? fieldNames[field] : NULL;
 }
 
 int RealHttpReplyMessageDescriptor::findField(void *object, const char *fieldName) const
 {
     cClassDescriptor *basedesc = getBaseClassDescriptor();
     int base = basedesc ? basedesc->getFieldCount(object) : 0;
-    if (fieldName[0]=='a' && strcmp(fieldName, "acceptRanges")==0) return base+0;
-    if (fieldName[0]=='a' && strcmp(fieldName, "age")==0) return base+1;
-    if (fieldName[0]=='c' && strcmp(fieldName, "cacheControl")==0) return base+2;
-    if (fieldName[0]=='c' && strcmp(fieldName, "contentEncoding")==0) return base+3;
-    if (fieldName[0]=='c' && strcmp(fieldName, "contentLanguage")==0) return base+4;
-    if (fieldName[0]=='c' && strcmp(fieldName, "contentLength")==0) return base+5;
-    if (fieldName[0]=='c' && strcmp(fieldName, "contentLocation")==0) return base+6;
-    if (fieldName[0]=='d' && strcmp(fieldName, "date")==0) return base+7;
-    if (fieldName[0]=='e' && strcmp(fieldName, "etag")==0) return base+8;
-    if (fieldName[0]=='e' && strcmp(fieldName, "expires")==0) return base+9;
-    if (fieldName[0]=='l' && strcmp(fieldName, "lastModified")==0) return base+10;
-    if (fieldName[0]=='l' && strcmp(fieldName, "location")==0) return base+11;
-    if (fieldName[0]=='p' && strcmp(fieldName, "pragma")==0) return base+12;
-    if (fieldName[0]=='s' && strcmp(fieldName, "server")==0) return base+13;
-    if (fieldName[0]=='t' && strcmp(fieldName, "transferEncoding")==0) return base+14;
-    if (fieldName[0]=='v' && strcmp(fieldName, "vary")==0) return base+15;
-    if (fieldName[0]=='v' && strcmp(fieldName, "via")==0) return base+16;
-    if (fieldName[0]=='x' && strcmp(fieldName, "xPoweredBy")==0) return base+17;
+    if (fieldName[0]=='r' && strcmp(fieldName, "requestURI")==0) return base+0;
+    if (fieldName[0]=='a' && strcmp(fieldName, "acceptRanges")==0) return base+1;
+    if (fieldName[0]=='a' && strcmp(fieldName, "age")==0) return base+2;
+    if (fieldName[0]=='c' && strcmp(fieldName, "cacheControl")==0) return base+3;
+    if (fieldName[0]=='c' && strcmp(fieldName, "contentEncoding")==0) return base+4;
+    if (fieldName[0]=='c' && strcmp(fieldName, "contentLanguage")==0) return base+5;
+    if (fieldName[0]=='c' && strcmp(fieldName, "contentLength")==0) return base+6;
+    if (fieldName[0]=='c' && strcmp(fieldName, "contentLocation")==0) return base+7;
+    if (fieldName[0]=='d' && strcmp(fieldName, "date")==0) return base+8;
+    if (fieldName[0]=='e' && strcmp(fieldName, "etag")==0) return base+9;
+    if (fieldName[0]=='e' && strcmp(fieldName, "expires")==0) return base+10;
+    if (fieldName[0]=='l' && strcmp(fieldName, "lastModified")==0) return base+11;
+    if (fieldName[0]=='l' && strcmp(fieldName, "location")==0) return base+12;
+    if (fieldName[0]=='p' && strcmp(fieldName, "pragma")==0) return base+13;
+    if (fieldName[0]=='s' && strcmp(fieldName, "server")==0) return base+14;
+    if (fieldName[0]=='t' && strcmp(fieldName, "transferEncoding")==0) return base+15;
+    if (fieldName[0]=='v' && strcmp(fieldName, "vary")==0) return base+16;
+    if (fieldName[0]=='v' && strcmp(fieldName, "via")==0) return base+17;
+    if (fieldName[0]=='x' && strcmp(fieldName, "xPoweredBy")==0) return base+18;
     return basedesc ? basedesc->findField(object, fieldName) : -1;
 }
 
@@ -871,6 +888,7 @@ const char *RealHttpReplyMessageDescriptor::getFieldTypeString(void *object, int
         field -= basedesc->getFieldCount(object);
     }
     static const char *fieldTypeStrings[] = {
+        "string",
         "string",
         "int",
         "string",
@@ -890,7 +908,7 @@ const char *RealHttpReplyMessageDescriptor::getFieldTypeString(void *object, int
         "string",
         "string",
     };
-    return (field>=0 && field<18) ? fieldTypeStrings[field] : NULL;
+    return (field>=0 && field<19) ? fieldTypeStrings[field] : NULL;
 }
 
 const char *RealHttpReplyMessageDescriptor::getFieldProperty(void *object, int field, const char *propertyname) const
@@ -930,24 +948,25 @@ std::string RealHttpReplyMessageDescriptor::getFieldAsString(void *object, int f
     }
     RealHttpReplyMessage *pp = (RealHttpReplyMessage *)object; (void)pp;
     switch (field) {
-        case 0: return oppstring2string(pp->acceptRanges());
-        case 1: return long2string(pp->age());
-        case 2: return oppstring2string(pp->cacheControl());
-        case 3: return oppstring2string(pp->contentEncoding());
-        case 4: return oppstring2string(pp->contentLanguage());
-        case 5: return long2string(pp->contentLength());
-        case 6: return oppstring2string(pp->contentLocation());
-        case 7: return oppstring2string(pp->date());
-        case 8: return oppstring2string(pp->etag());
-        case 9: return oppstring2string(pp->expires());
-        case 10: return oppstring2string(pp->lastModified());
-        case 11: return oppstring2string(pp->location());
-        case 12: return oppstring2string(pp->pragma());
-        case 13: return oppstring2string(pp->server());
-        case 14: return oppstring2string(pp->transferEncoding());
-        case 15: return oppstring2string(pp->vary());
-        case 16: return oppstring2string(pp->via());
-        case 17: return oppstring2string(pp->xPoweredBy());
+        case 0: return oppstring2string(pp->requestURI());
+        case 1: return oppstring2string(pp->acceptRanges());
+        case 2: return long2string(pp->age());
+        case 3: return oppstring2string(pp->cacheControl());
+        case 4: return oppstring2string(pp->contentEncoding());
+        case 5: return oppstring2string(pp->contentLanguage());
+        case 6: return long2string(pp->contentLength());
+        case 7: return oppstring2string(pp->contentLocation());
+        case 8: return oppstring2string(pp->date());
+        case 9: return oppstring2string(pp->etag());
+        case 10: return oppstring2string(pp->expires());
+        case 11: return oppstring2string(pp->lastModified());
+        case 12: return oppstring2string(pp->location());
+        case 13: return oppstring2string(pp->pragma());
+        case 14: return oppstring2string(pp->server());
+        case 15: return oppstring2string(pp->transferEncoding());
+        case 16: return oppstring2string(pp->vary());
+        case 17: return oppstring2string(pp->via());
+        case 18: return oppstring2string(pp->xPoweredBy());
         default: return "";
     }
 }
@@ -962,24 +981,25 @@ bool RealHttpReplyMessageDescriptor::setFieldAsString(void *object, int field, i
     }
     RealHttpReplyMessage *pp = (RealHttpReplyMessage *)object; (void)pp;
     switch (field) {
-        case 0: pp->setAcceptRanges((value)); return true;
-        case 1: pp->setAge(string2long(value)); return true;
-        case 2: pp->setCacheControl((value)); return true;
-        case 3: pp->setContentEncoding((value)); return true;
-        case 4: pp->setContentLanguage((value)); return true;
-        case 5: pp->setContentLength(string2long(value)); return true;
-        case 6: pp->setContentLocation((value)); return true;
-        case 7: pp->setDate((value)); return true;
-        case 8: pp->setEtag((value)); return true;
-        case 9: pp->setExpires((value)); return true;
-        case 10: pp->setLastModified((value)); return true;
-        case 11: pp->setLocation((value)); return true;
-        case 12: pp->setPragma((value)); return true;
-        case 13: pp->setServer((value)); return true;
-        case 14: pp->setTransferEncoding((value)); return true;
-        case 15: pp->setVary((value)); return true;
-        case 16: pp->setVia((value)); return true;
-        case 17: pp->setXPoweredBy((value)); return true;
+        case 0: pp->setRequestURI((value)); return true;
+        case 1: pp->setAcceptRanges((value)); return true;
+        case 2: pp->setAge(string2long(value)); return true;
+        case 3: pp->setCacheControl((value)); return true;
+        case 4: pp->setContentEncoding((value)); return true;
+        case 5: pp->setContentLanguage((value)); return true;
+        case 6: pp->setContentLength(string2long(value)); return true;
+        case 7: pp->setContentLocation((value)); return true;
+        case 8: pp->setDate((value)); return true;
+        case 9: pp->setEtag((value)); return true;
+        case 10: pp->setExpires((value)); return true;
+        case 11: pp->setLastModified((value)); return true;
+        case 12: pp->setLocation((value)); return true;
+        case 13: pp->setPragma((value)); return true;
+        case 14: pp->setServer((value)); return true;
+        case 15: pp->setTransferEncoding((value)); return true;
+        case 16: pp->setVary((value)); return true;
+        case 17: pp->setVia((value)); return true;
+        case 18: pp->setXPoweredBy((value)); return true;
         default: return false;
     }
 }
@@ -1011,8 +1031,9 @@ const char *RealHttpReplyMessageDescriptor::getFieldStructName(void *object, int
         NULL,
         NULL,
         NULL,
+        NULL,
     };
-    return (field>=0 && field<18) ? fieldStructNames[field] : NULL;
+    return (field>=0 && field<19) ? fieldStructNames[field] : NULL;
 }
 
 void *RealHttpReplyMessageDescriptor::getFieldStructPointer(void *object, int field, int i) const
