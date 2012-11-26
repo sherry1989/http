@@ -30,6 +30,9 @@ class HarServer : public NSCHttpServer
     /** Returns the number of initialization stages. Two required. */
     int numInitStages() const {return 2;}
 
+    /** Report final statistics */
+    virtual void finish();
+
     /** Handle a received data message, e.g. check if the content requested exists. */
     virtual HttpReplyMessage *handleReceivedMessage(cMessage *msg);
 
@@ -43,6 +46,10 @@ class HarServer : public NSCHttpServer
     virtual std::string formatHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
 
     HarParser *pHarParser;
+
+    // Basic statistics
+    long mediaResourcesServed;
+    long otherResourcesServed;
 };
 
 #endif

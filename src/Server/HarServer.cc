@@ -34,7 +34,31 @@ void HarServer::initialize(int stage)
     else if (stage==1)
     {
         NSCHttpServer::initialize();
+
+        // Initialize statistics
+        mediaResourcesServed = otherResourcesServed = 0;
+
+        // Initialize watches
+        WATCH(mediaResourcesServed);
+        WATCH(otherResourcesServed);
     }
+}
+
+void HarServer::finish()
+{
+    EV_SUMMARY << "HTML documents served " << htmlDocsServed << "\n";
+    EV_SUMMARY << "Image resources served " << imgResourcesServed << "\n";
+    EV_SUMMARY << "Text resources served " << textResourcesServed << "\n";
+    EV_SUMMARY << "Media resources served " << mediaResourcesServed << "\n";
+    EV_SUMMARY << "Other resources served " << otherResourcesServed << "\n";
+    EV_SUMMARY << "Bad requests " << badRequests << "\n";
+
+    recordScalar("HTML.served", htmlDocsServed);
+    recordScalar("images.served", imgResourcesServed);
+    recordScalar("text.served", textResourcesServed);
+    recordScalar("media.served", mediaResourcesServed);
+    recordScalar("other.served", otherResourcesServed);
+    recordScalar("bad.requests", badRequests);
 }
 
 /*
@@ -180,6 +204,11 @@ std::string HarServer::formatHttpResponseMessageHeader(const RealHttpReplyMessag
     {
         return NSCHttpServer::formatHttpResponseMessageHeader(httpResponse);
     }
+    else
+    {
+        //Find the response, modify the statistics-----step 1, set this not badRequest
+        badRequests--;
+    }
 
     /*
      * pre-process the headerFrame
@@ -210,6 +239,41 @@ std::string HarServer::formatHttpResponseMessageHeader(const RealHttpReplyMessag
             else
             {
                 throw cRuntimeError("Invalid HTTP version: %s", responseFrame[i].val.c_str());
+            }
+        }
+        //modify the statistics-----step 2, set this served resource depend on the content-type
+        /*
+         * in RFC1521, the content-type definition is :
+         *    In the Augmented BNF notation of RFC 822, a Content-Type header field value is defined as follows:
+                 content  :=   "Content-Type"  ":"  type  "/"  subtype  *(";" parameter)
+               ; case-insensitive matching of type and subtype
+                 type :=          "application"     / "audio"
+                                   / "image"           / "message"
+                                   / "multipart"  / "text"
+                                   / "video"           / extension-token
+                                   ; All values case-insensitive
+                 extension-token :=  x-token / iana-token
+         */
+        else if (responseFrame[i].key.find("content-type") != string::npos)
+        {
+            if (responseFrame[i].val.find("image") != string::npos)
+            {
+                imgResourcesServed++;
+            }
+            else if (responseFrame[i].val.find("text") != string::npos || responseFrame[i].val.find("javascript") != string::npos
+                    || responseFrame[i].val.find("xml") != string::npos)
+            {
+                textResourcesServed++;
+            }
+            //----Note: since javascript and xml type has application token, should do text statistic before media
+            else if (responseFrame[i].val.find("application") != string::npos || responseFrame[i].val.find("audio") != string::npos
+                    || responseFrame[i].val.find("video") != string::npos)
+            {
+                mediaResourcesServed++;
+            }
+            else
+            {
+                otherResourcesServed++;
             }
         }
     }
