@@ -22,17 +22,25 @@ HarParser::HarParser()
      * 1. get the har file and parse it
      */
     int n_files;
-    char** files = new char*[1];
     n_files = 1;
+    char** files = new char*[n_files];
 
-    files[0] = new char[20];
+    files[0] = new char[50];
     files[0][0] = '\0';
 //    strcpy(files[0], "www.baidu.com.har\0");
-    strcpy(files[0], "www.sina.com.cn.har\0");
+//    strcpy(files[0], "www.sina.com.cn.har\0");
+    strcpy(files[0], "www.sina.com.cn_firebug.har\0");
+//    strcpy(files[0], "music.10086.cn.har\0");
 
     ParseHarFiles(n_files, files, &requests, &responses);
 
-    delete[] files[0];
+    EV_DEBUG_NOMODULE << "after ParseHarFiles, requests size is " << requests.size() << endl;
+    EV_DEBUG_NOMODULE << "after ParseHarFiles, responses size is " << responses.size() << endl;
+
+    for (unsigned int i = 0; i < n_files; i++)
+    {
+        delete[] files[i];
+    }
     delete[] files;
 
 
@@ -52,7 +60,8 @@ HarParser::HarParser()
     for (unsigned int i = 0; i < requests.size(); ++i)
     {
         ++pair_count;
-        for (unsigned int j = 0; j < requests[i].size(); ++j)
+        unsigned int j;
+        for (j = 0; j < requests[i].size(); ++j)
         {
             if (requests[i][j].key.find(":path") != string::npos)
             {
@@ -60,7 +69,7 @@ HarParser::HarParser()
                  * record request and response map for browser and server check to generate messages
                  * the key is the request-uri in each request
                  */
-                EV_DEBUG_NOMODULE << "Initialize No." << i << "pair of headers, key in map is " << requests[i][j].val << endl;
+                EV_DEBUG_NOMODULE << "Initialize No." << i << " pair of headers, key in map is " << requests[i][j].val << endl;
 
                 string key = requests[i][j].val;
 
@@ -94,7 +103,7 @@ HarParser::HarParser()
                 unsigned int k;
                 for (k = 0; k < responses[i].size(); ++k)
                 {
-                    if (responses[i][k].key.find("content-length") != string::npos)
+                    if (responses[i][k].key.find("Content-Length") != string::npos)
                     {
                         sitedef << responses[i][k].val << endl;
                         break;
@@ -109,7 +118,20 @@ HarParser::HarParser()
                 break;
             }
         }
+        if (j == requests[i].size())
+        {
+            EV_ERROR_NOMODULE << "When i is " << i << " cannot find path key" << endl;
+            EV_DEBUG_NOMODULE << "Request is" << endl;
+            OutputHeaderFrame(requests[i]);
+            EV_DEBUG_NOMODULE << "Response is" << endl;
+            OutputHeaderFrame(responses[i]);
+        }
+
     }
+
+    sitedef.close();
+    pagedef.close();
+
     EV_DEBUG_NOMODULE << "Total messages pair number is " << pair_count << endl;
     EV_DEBUG_NOMODULE << "Total request map size is " << requestMap.size() << endl;
 }
@@ -173,7 +195,7 @@ int HarParser::ParseHarFiles(int n_files, char** files, vector<HeaderFrame>* req
     {
         dup2(pipe_fds[1], 1);
         char** new_argv = new char*[n_files + 2];
-        new_argv[0] = (char*) "./../3rdparty/spdy4_headers_sample/harfile_translator.py";
+        new_argv[0] = (char*) "./../src/protocolUtils/harfile_translator.py";
         for (int i = 0; i < n_files; ++i)
         {
             new_argv[i + 1] = files[i];
@@ -209,9 +231,15 @@ int HarParser::ParseHarFiles(int n_files, char** files, vector<HeaderFrame>* req
             input << buf;
         }
     }
+
+    ofstream inputfile("input.txt", ios::out|ios::trunc);
+    inputfile << input.str();
+    inputfile.close();
+
+
     if (!TrivialHTTPParse::ParseStream(input, requests, responses))
     {
-        cerr << "Failed to parse correctly. Exiting\n";
+        EV_ERROR_NOMODULE << "Failed to parse correctly. Exiting\n";
         return 0;
     }
     return 1;
