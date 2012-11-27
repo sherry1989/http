@@ -161,6 +161,9 @@ RealHttpRequestMessage* HttpRequestPraser::praseHttpRequest(cPacket *msg, Protoc
     byMsg->getByteArray().copyDataToBuffer(buf, bufLength, 0);
 //    buf[bufLength] = '\0';
 
+    EV_DEBUG_NOMODULE << "HTTP Request to parse ByteLength is:" << bufLength << endl;
+    EV_DEBUG_NOMODULE << "HTTP Request to parse ByteArray is:" << buf << endl;
+
     httpRequest->setName(msg->getName());
     httpRequest->setSentFrom(msg->getSenderModule(), msg->getSenderGateId(), msg->getSendingTime());
 
@@ -188,11 +191,11 @@ RealHttpRequestMessage* HttpRequestPraser::praseHttpRequest(cPacket *msg, Protoc
     http_errno htperr = HTTP_PARSER_ERRNO(pRequestParser);
     if (htperr == HPE_OK)
     {
-        EV_DEBUG_NOMODULE << "Finish prasing http response message" << endl;
+        EV_DEBUG_NOMODULE << "Finish prasing http request message" << endl;
     }
     else
     {
-        EV_ERROR_NOMODULE << "HTTP response parser failure: " << "(" << http_errno_name(htperr) << ") "
+        EV_ERROR_NOMODULE << "HTTP request parser failure: " << "(" << http_errno_name(htperr) << ") "
                 << http_errno_description(htperr) << endl;
     }
 
