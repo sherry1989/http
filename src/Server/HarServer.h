@@ -43,7 +43,7 @@ class HarServer : public NSCHttpServer
     virtual std::string formatByteResponseMessage(HttpReplyMessage *httpResponse);
 
     /** Format a response message to HTTP Response Message Header */
-    virtual std::string formatHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
+    virtual std::string formatHttpResponseMessageHeader(RealHttpReplyMessage *httpResponse);
 
     HarParser *pHarParser;
 

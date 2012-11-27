@@ -93,7 +93,16 @@ HttpReplyMessage* HarServer::handleReceivedMessage(cMessage *msg)
         EV_ERROR << "Invalid request string: " << request->heading() << endl;
         httpResponse = generateErrorReply(request, 400);
         logResponse(httpResponse);
-        return httpResponse;
+
+        /*
+         * Note: here change HttpReplyMessage * to RealHttpReplyMessage * to record request URI for the later check
+         * for this case, request URI is set to "" to fit the procedure
+         */
+        RealHttpReplyMessage *realhttpResponse = changeReplyToReal(httpResponse);
+        realhttpResponse->setRequestURI("");
+
+        ///Note: here return the HttpReplyMessage * pointer, need to do static_cast
+        return static_cast<HttpReplyMessage*>(realhttpResponse);
     }
 
     if (request->badRequest())
@@ -137,9 +146,9 @@ std::string HarServer::formatByteResponseMessage(HttpReplyMessage *httpResponse)
 {
     /*
      * Note: this is a RealHttpReplyMessage * pointer indeed
-     * just use dynamic_cast to change it
+     * just use dynamic_cast[check_and_cast] to change it
      */
-    RealHttpReplyMessage *realhttpResponse = dynamic_cast<RealHttpReplyMessage*>(httpResponse);
+    RealHttpReplyMessage *realhttpResponse = check_and_cast<RealHttpReplyMessage*>(httpResponse);
     std::string resHeader;
 
     switch(protocolType)
@@ -188,11 +197,18 @@ std::string HarServer::formatByteResponseMessage(HttpReplyMessage *httpResponse)
                 CRLF
                 [ message-body ]
  */
-std::string HarServer::formatHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse)
+std::string HarServer::formatHttpResponseMessageHeader(RealHttpReplyMessage *httpResponse)
 {
     std::ostringstream str;
 
-    /////////###### need to modify
+    /*
+     * for "Invalid request string" case, requestURI is "" and the size is 0
+     * simply call base class's formatHttpResponseMessageHeader
+     */
+    if (strcmp(httpResponse->requestURI(),"") == 0)
+    {
+        return NSCHttpServer::formatHttpResponseMessageHeader(httpResponse);
+    }
 
     /*
      * get the har request for this request-uri
@@ -240,6 +256,11 @@ std::string HarServer::formatHttpResponseMessageHeader(const RealHttpReplyMessag
             {
                 throw cRuntimeError("Invalid HTTP version: %s", responseFrame[i].val.c_str());
             }
+        }
+        //reset content-length
+        else if (responseFrame[i].key.find("content-length") != string::npos)
+        {
+            httpResponse->setContentLength(std::atoi(responseFrame[i].val.c_str()));
         }
         //modify the statistics-----step 2, set this served resource depend on the content-type
         /*
