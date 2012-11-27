@@ -17,6 +17,7 @@ HarParser::HarParser()
     // TODO Auto-generated constructor stub
     vector<HeaderFrame> requests;
     vector<HeaderFrame> responses;
+    vector<HeaderFrame> timings;
 
     /*
      * 1. get the har file and parse it
@@ -32,10 +33,11 @@ HarParser::HarParser()
     strcpy(files[0], "www.sina.com.cn_firebug.har\0");
 //    strcpy(files[0], "music.10086.cn.har\0");
 
-    ParseHarFiles(n_files, files, &requests, &responses);
+    ParseHarFiles(n_files, files, &requests, &responses, &timings);
 
     EV_DEBUG_NOMODULE << "after ParseHarFiles, requests size is " << requests.size() << endl;
     EV_DEBUG_NOMODULE << "after ParseHarFiles, responses size is " << responses.size() << endl;
+    EV_DEBUG_NOMODULE << "after ParseHarFiles, timings size is " << timings.size() << endl;
 
     for (unsigned int i = 0; i < n_files; i++)
     {
@@ -95,6 +97,10 @@ HarParser::HarParser()
                 OutputHeaderFrame(responses[i]);
                 responseMap.insert(make_pair(key, responses[i]));
 
+                EV_DEBUG_NOMODULE << "Timings is" << endl;
+                OutputHeaderFrame(timings[i]);
+                timingsMap.insert(make_pair(key, timings[i]));
+
                 /*
                  * generate sitedef file and the pagedef file
                  */
@@ -125,6 +131,8 @@ HarParser::HarParser()
             OutputHeaderFrame(requests[i]);
             EV_DEBUG_NOMODULE << "Response is" << endl;
             OutputHeaderFrame(responses[i]);
+            EV_DEBUG_NOMODULE << "Timings is" << endl;
+            OutputHeaderFrame(timings[i]);
         }
 
     }
@@ -158,6 +166,7 @@ HeaderFrame HarParser::getRequest(string requestURI)
         return emptyFrame;
     }
 }
+
 HeaderFrame HarParser::getResponse(string requestURI)
 {
     HeaderMap::iterator iter;
@@ -176,7 +185,25 @@ HeaderFrame HarParser::getResponse(string requestURI)
     }
 }
 
-int HarParser::ParseHarFiles(int n_files, char** files, vector<HeaderFrame>* requests, vector<HeaderFrame>* responses)
+HeaderFrame HarParser::getTiming(string requestURI)
+{
+    HeaderMap::iterator iter;
+    iter = timingsMap.find(requestURI);
+    if (iter != timingsMap.end())
+    {
+        EV_DEBUG_NOMODULE << "Find the requestURI [" << requestURI << "] related timings, timing info is" << endl;
+        OutputHeaderFrame(iter->second);
+        return iter->second;
+    }
+    else
+    {
+        EV_DEBUG_NOMODULE << "Do not find the requestURI [" << requestURI << "] related timings message" << endl;
+        HeaderFrame emptyFrame;
+        return emptyFrame;
+    }
+}
+
+int HarParser::ParseHarFiles(int n_files, char** files, vector<HeaderFrame>* requests, vector<HeaderFrame>* responses, vector<HeaderFrame>* timings)
 {
     int pipe_fds[2];  // read, write
     int pipe_retval = pipe(pipe_fds);
@@ -237,7 +264,7 @@ int HarParser::ParseHarFiles(int n_files, char** files, vector<HeaderFrame>* req
     inputfile.close();
 
 
-    if (!TrivialHTTPParse::ParseStream(input, requests, responses))
+    if (!ParseStream(input, requests, responses, timings))
     {
         EV_ERROR_NOMODULE << "Failed to parse correctly. Exiting\n";
         return 0;
@@ -254,4 +281,72 @@ void HarParser::OutputHeaderFrame(const HeaderFrame& hf)
         const string& v = line.val;
         EV_DEBUG_NOMODULE << k << ": " << v << "\n";
     }
+}
+
+HeaderFrame* HarParser::GetHeaderFramePtr(vector<HeaderFrame>* frames, unsigned int expected_previous_len)
+{
+    if (frames->size() <= expected_previous_len)
+    {
+        frames->push_back(HeaderFrame());
+    }
+    return &(frames->back());
+}
+
+int HarParser::ParseFile(const string& fn, vector<HeaderFrame>* requests, vector<HeaderFrame>* responses, vector<HeaderFrame>* timings)
+{
+    ifstream ifs(fn.c_str());
+    ParseStream(ifs, requests, responses, timings);
+    return 1;
+}
+
+int HarParser::ParseStream(istream& istrm, vector<HeaderFrame>* requests, vector<HeaderFrame>* responses, vector<HeaderFrame>* timings)
+{
+    int frames_len = 0;
+    int frames_idx = 0;
+    vector<HeaderFrame>* frames[3] = { requests, responses, timings };
+    if (!(requests->empty() && responses->empty() && timings->empty()))
+    {
+        return -1;
+    }
+    HeaderFrame* cur_frame = GetHeaderFramePtr(frames[frames_idx], frames_len);
+
+    unsigned int i = 1;
+    while (istrm.good())
+    {
+        string line;
+        getline(istrm, line);
+        EV_DEBUG_NOMODULE << "read line #" << i << ". line content is: " << line << endl;
+        size_t colon_pos = line.find_first_of(":", 1);
+        if (line.size() == 0)
+        {
+            // finished with this frame.
+            if (frames_idx == 2)
+            {
+                ++frames_len;
+                frames_idx = -1;
+                EV_DEBUG_NOMODULE << "finished with this frame. frames_len next is" << frames_len << endl;
+            }
+            frames_idx++;
+            cur_frame = GetHeaderFramePtr(frames[frames_idx], frames_len);
+            continue;
+        }
+        else if (colon_pos == string::npos || colon_pos + 1 > line.size() || line[colon_pos + 1] != ' ')
+        {
+            EV_ERROR_NOMODULE << "Misformatted line. Was expecting to see a ': ' in there.\n";
+            EV_ERROR_NOMODULE << "Line:\n";
+            EV_ERROR_NOMODULE << line << "\n";
+            EV_ERROR_NOMODULE << "colon_pos: " << colon_pos << "\n";
+            return 0;
+        }
+        size_t val_start = colon_pos + 2;
+        size_t val_size = line.size() - val_start;
+        cur_frame->push_back(KVPair(line.substr(0, colon_pos), line.substr(val_start, val_size)));
+
+        i++;
+    }
+    if (requests->back().empty())
+    {
+        requests->pop_back();
+    }
+    return 1;
 }

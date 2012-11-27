@@ -4,6 +4,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# modified by qian
+
 from harfile import ReadHarFileForHttp
 from optparse import OptionParser
 import sys
@@ -21,15 +23,19 @@ def main():
   if args >= 1:
     requests = []
     responses = []
+    timings = []
     for filename in args:
       sys.stderr.write(filename)
-      (har_requests, har_responses) = ReadHarFileForHttp(filename)
+      (har_requests, har_responses, har_timings) = ReadHarFileForHttp(filename)
       requests.extend(har_requests)
       responses.extend(har_responses)
+      timings.extend(har_timings)
   for i in xrange(len(requests)):
     FormatIt(requests[i])
     print
     FormatIt(responses[i])
+    print
+    FormatIt(timings[i])
     print
   sys.stdin.close()
   sys.stdout.close()

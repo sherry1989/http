@@ -26,9 +26,6 @@
 #include <map>
 #include <fstream>
 
-//#include "bit_bucket.h"
-#include "trivial_http_parse.h"
-
 using std::vector;
 using std::memset;
 using std::fixed;
@@ -45,6 +42,35 @@ using std::map;
 using std::auto_ptr;
 using std::ofstream;
 using std::ios;
+using std::getline;
+using std::ifstream;
+using std::istream;
+
+struct KVPair
+{
+        string key;
+        string val;
+        KVPair()
+        {
+        }
+        KVPair(string key, string val) :
+                key(key), val(val)
+        {
+        }
+        friend ostream& operator<<(ostream& os, const KVPair& kv)
+        {
+            os << "\"" << kv.key << "\" \"" << kv.val << "\"";
+            return os;
+        }
+        size_t size() const
+        {
+            return key.size() + val.size();
+        }
+};
+
+typedef vector<KVPair> Lines;
+
+typedef Lines HeaderFrame;
 
 class HarParser
 {
@@ -60,6 +86,7 @@ class HarParser
 
         HeaderFrame getRequest(string requestURI);
         HeaderFrame getResponse(string requestURI);
+        HeaderFrame getTiming(string requestURI);
 
     protected:
         HarParser();
@@ -69,8 +96,12 @@ class HarParser
         static HarParserPtr _instance;
 
     private:
-        int ParseHarFiles(int n_files, char** files, vector<HeaderFrame>* requests, vector<HeaderFrame>* responses);
+        int ParseHarFiles(int n_files, char** files, vector<HeaderFrame>* requests, vector<HeaderFrame>* responses, vector<HeaderFrame>* timings);
         void OutputHeaderFrame(const HeaderFrame& hf);
+
+        static int ParseFile(const string& fn, vector<HeaderFrame>* requests, vector<HeaderFrame>* responses, vector<HeaderFrame>* timings);
+        static int ParseStream(istream& istrm, vector<HeaderFrame>* requests, vector<HeaderFrame>* responses, vector<HeaderFrame>* timings);
+        static HeaderFrame* GetHeaderFramePtr(vector<HeaderFrame>* frames, unsigned int expected_previous_len);
 
         /**
          * A list of active sockets for each server
@@ -79,6 +110,7 @@ class HarParser
 
         HeaderMap requestMap;
         HeaderMap responseMap;
+        HeaderMap timingsMap;
 
 };
 

@@ -4,6 +4,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+# modified by qian
+
 import re
 
 def MakeDefaultHeaders(list_o_dicts):
@@ -28,6 +30,8 @@ def ReadHarFileForHttp(filename):
   o = eval(s)
   request_headers = []
   response_headers = []
+  timings_dict = []
+
   for entry in o["log"]["entries"]:
     request = entry["request"]
     header = MakeDefaultHeaders(request["headers"])
@@ -47,6 +51,10 @@ def ReadHarFileForHttp(filename):
     header[":status-text"] = response["statusText"]
     header[":version"] = re.sub("^[^/]*/","", response["httpVersion"])
     response_headers.append(header)
-  return (request_headers, response_headers)
+    
+    timings = entry["timings"]
+    timings_dict.append(timings)
+    
+  return (request_headers, response_headers, timings_dict)
 
 
