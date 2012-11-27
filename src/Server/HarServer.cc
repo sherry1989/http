@@ -234,13 +234,14 @@ std::string HarServer::formatHttpResponseMessageHeader(RealHttpReplyMessage *htt
     string version("HTTP/1.1");
     for (unsigned int i = 0; i < responseFrame.size(); ++i)
     {
-        if (responseFrame[i].key.find(":status") != string::npos)
+        //---Note: here should cmp ":status-text" before ":status", or ":status" may get ":status-text" value
+        if (responseFrame[i].key.find(":status-text") != string::npos)
         {
             statusText.assign(responseFrame[i].val);
         }
-        else if (responseFrame[i].key.find(":status-text") != string::npos)
+        else if (responseFrame[i].key.find(":status") != string::npos)
         {
-            statusText.assign(responseFrame[i].val);
+            status.assign(responseFrame[i].val);
         }
         else if (responseFrame[i].key.find(":version") != string::npos)
         {
@@ -258,7 +259,7 @@ std::string HarServer::formatHttpResponseMessageHeader(RealHttpReplyMessage *htt
             }
         }
         //reset content-length
-        else if (responseFrame[i].key.find("content-length") != string::npos)
+        else if (responseFrame[i].key.find("Content-Length") != string::npos)
         {
             httpResponse->setContentLength(std::atoi(responseFrame[i].val.c_str()));
         }
@@ -275,7 +276,7 @@ std::string HarServer::formatHttpResponseMessageHeader(RealHttpReplyMessage *htt
                                    ; All values case-insensitive
                  extension-token :=  x-token / iana-token
          */
-        else if (responseFrame[i].key.find("content-type") != string::npos)
+        else if (responseFrame[i].key.find("Content-Type") != string::npos)
         {
             if (responseFrame[i].val.find("image") != string::npos)
             {
@@ -313,7 +314,6 @@ std::string HarServer::formatHttpResponseMessageHeader(RealHttpReplyMessage *htt
     str << status << " " << statusText << "\r\n";
 
 
-
     /**
      * 2.Generate the rest header
      */
@@ -331,7 +331,7 @@ std::string HarServer::formatHttpResponseMessageHeader(RealHttpReplyMessage *htt
     }
     /*************************************Finish generating HTTP Request Header*************************************/
 
-//    str << "\r\n";
+    str << "\r\n";
 
     return str.str();
 }
