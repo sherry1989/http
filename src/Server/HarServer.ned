@@ -23,4 +23,6 @@ import http.src.Server.NSCHttpServer;
 simple HarServer extends NSCHttpServer
 {
     @class(HarServer);
+    
+    bool getWaitTimeFromHar = default(true);
 }

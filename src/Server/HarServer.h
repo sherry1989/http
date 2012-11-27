@@ -36,6 +36,13 @@ class HarServer : public NSCHttpServer
     /** Handle a received data message, e.g. check if the content requested exists. */
     virtual HttpReplyMessage *handleReceivedMessage(cMessage *msg);
 
+    /**
+     * Handler for socket data arrived events.
+     * Dispatches the received message to the message handler in the base class and
+     * finishes by deleting the received message.
+     */
+    virtual void socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool urgent);
+
     /*
      * Format an application TCP_TRANSFER_BYTESTREAM response message which can be sent though NSC TCP depence on the application layer protocol
      * the protocol type can be HTTP \ SPDY \ HTTPS+M \ HTTPNF
@@ -50,6 +57,9 @@ class HarServer : public NSCHttpServer
     // Basic statistics
     long mediaResourcesServed;
     long otherResourcesServed;
+
+  private:
+    bool getWaitTimeFromHar;
 };
 
 #endif

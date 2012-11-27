@@ -35,6 +35,8 @@ void HarServer::initialize(int stage)
     {
         NSCHttpServer::initialize();
 
+        getWaitTimeFromHar = par("getWaitTimeFromHar");
+
         // Initialize statistics
         mediaResourcesServed = otherResourcesServed = 0;
 
@@ -136,6 +138,139 @@ HttpReplyMessage* HarServer::handleReceivedMessage(cMessage *msg)
     }
 
     return httpResponse;
+}
+
+void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool urgent)
+{
+    if (yourPtr==NULL)
+    {
+        EV_ERROR << "Socket establish failure. Null pointer" << endl;
+        return;
+    }
+    TCPSocket *socket = (TCPSocket*)yourPtr;
+
+    HttpRequestPraser *praser = new HttpRequestPraser();
+
+    cPacket *prasedMsg = praser->praseHttpRequest(msg, protocolType);
+
+    // Should be a HttpRequestMessage
+    EV_DEBUG << "Socket data arrived on connection " << connId << ". Message=" << prasedMsg->getName() << ", kind=" << prasedMsg->getKind() << endl;
+
+    // call the message handler to process the message.
+    HttpReplyMessage *reply = handleReceivedMessage(prasedMsg);
+
+    if (reply!=NULL)
+    {
+        /*
+         * add delay time to send reply, in order to make HOL possible
+         */
+//        socket->send(reply); // Send to socket if the reply is non-zero.
+        double replyDelay;
+        //--need to get wait time from har file
+        if (getWaitTimeFromHar)
+        {
+            /*
+             * 1. get request URI
+             */
+            RealHttpReplyMessage *httpResponse = check_and_cast<RealHttpReplyMessage*>(reply);
+
+            //can not get request URI, generate it ramdomly
+            if (strcmp(httpResponse->requestURI(),"") == 0)
+            {
+                replyDelay = (double)(rdReplyDelay->draw());
+            }
+            else
+            {
+                // use the request-uri to get the real har response
+                HeaderFrame timings = pHarParser->getTiming(httpResponse->requestURI());
+
+                if (timings.size() == 0)
+                {
+                    //can not find the timings, generate it ramdomly
+                    replyDelay = (double)(rdReplyDelay->draw());
+                }
+                else
+                {
+                    unsigned int i;
+                    for (i = 0; i < timings.size(); ++i)
+                    {
+                        //---Note: here should cmp ":status-text" before ":status", or ":status" may get ":status-text" value
+                        if (timings[i].key.find("wait") != string::npos)
+                        {
+                            replyDelay = (double)atof(timings[i].val.c_str());
+                        }
+                    }
+                    if (i == timings.size())
+                    {
+                        //can not find wait in the timings, generate it ramdomly
+                        replyDelay = (double)(rdReplyDelay->draw());
+                    }
+                }
+            }
+
+        }
+        else
+        {
+            replyDelay = (double)(rdReplyDelay->draw());
+        }
+        EV_DEBUG << "Need to send message on socket " << socket << ". Message=" << reply->getName() << ", kind=" << reply->getKind() <<", sendDelay = " << replyDelay << endl;
+
+        if (replyDelay == 0)
+        {
+            // if there is no other msg wait to send, send it directly
+            if (replyInfoPerSocket.find(socket) == replyInfoPerSocket.end() || replyInfoPerSocket[socket].empty())
+            {
+                // change message send method to adapt to the use of NSC
+                //socket->send(reply); // Send to socket if the reply is non-zero.
+                sendMessage(socket, reply);
+            }
+            else
+            {
+                /*
+                 * check if there's earlier reply not send
+                 */
+                bool readyToSend = true;
+                for (HttpReplyInfoQueue::iterator iter = replyInfoPerSocket[socket].begin(); iter != replyInfoPerSocket[socket].end(); iter++)
+                {
+                    readyToSend &= iter->readyToSend;
+                }
+                if (readyToSend)
+                {
+                    // change message send method to adapt to the use of NSC
+                    //socket->send(reply); // Send to socket if the reply is non-zero.
+                    sendMessage(socket, reply);
+                }
+                // there is earlier reply not send, record this reply
+                else
+                {
+                    //HttpReplyMessage *realhttpResponse = dynamic_cast<HttpReplyMessage*>(reply);
+                    ReplyInfo replyInfo = {reply, true};
+                    replyInfoPerSocket[socket].push_back(replyInfo);
+                }
+            }
+        }
+        else
+        {
+            //HttpReplyMessage *realhttpResponse = dynamic_cast<HttpReplyMessage*>(reply);
+            ReplyInfo replyInfo = {reply, false};
+            if (replyInfoPerSocket.find(socket) == replyInfoPerSocket.end())
+            {
+                HttpReplyInfoQueue tempQueue;
+                tempQueue.clear();
+                tempQueue.push_back(replyInfo);
+                replyInfoPerSocket[socket] = tempQueue;
+            }
+            else
+            {
+                replyInfoPerSocket[socket].push_back(replyInfo);
+            }
+
+            reply->setKind(HTTPT_DELAYED_RESPONSE_MESSAGE);
+            scheduleAt(simTime()+replyDelay, reply);
+        }
+    }
+    delete prasedMsg; // Delete the received message here. Must not be deleted in the handler!
+    delete praser;
 }
 
 /*
