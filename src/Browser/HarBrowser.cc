@@ -174,7 +174,7 @@ std::string HarBrowser::formatHttpRequestMessageHeader(const RealHttpRequestMess
     }
     /*************************************Finish generating HTTP Request Header*************************************/
 
-//    str << "\r\n";
+    str << "\r\n";
 
     return str.str();
 }
