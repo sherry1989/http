@@ -114,43 +114,57 @@ namespace ResponsePraser
         /*
          * set contentType of this http response message
          */
-        if (parser->httpResponse->result() == 200)
+        if (parser->httpResponse->result() == 200 && parser->getResponseHeader("Content-Type").size() != 0)
         {
             std::string contentType;
             contentType.assign(parser->getResponseHeader("Content-Type"));
 
-            if (strcmp(contentType.c_str(), "text/html") == 0)
+            if (contentType.find("text/html") != std::string::npos)
             {
                 parser->httpResponse->setContentType(CT_HTML);
             }
-            else if (strcmp(contentType.c_str(), "application/javascript") == 0)
-            {
-                parser->httpResponse->setContentType(CT_TEXT);
-            }
-            else if (strcmp(contentType.c_str(), "image/jpeg") == 0)
+            else if (contentType.find("image") != std::string::npos)
             {
                 parser->httpResponse->setContentType(CT_IMAGE);
             }
+            else if (contentType.find("text") != std::string::npos || contentType.find("javascript") != std::string::npos
+                    || contentType.find("xml") != std::string::npos)
+            {
+                parser->httpResponse->setContentType(CT_TEXT);
+            }
+            //----Note: since javascript and xml type has application token, should do text statistic before media
+            else if (contentType.find("application") != std::string::npos || contentType.find("audio") != std::string::npos
+                    || contentType.find("video") != std::string::npos)
+            {
+                parser->httpResponse->setContentType(CT_UNKNOWN);
+            }
             else
             {
-                throw cRuntimeError("Invalid HTTP Content Type");
+                parser->httpResponse->setContentType(CT_UNKNOWN);
             }
         }
 
         /*
          * set originatorUrl of this http response message
          */
-        std::string originatorUrl;
-        originatorUrl.assign(parser->getResponseHeader("Content-Location"));
-        parser->httpResponse->setOriginatorUrl(originatorUrl.c_str());
+        if (parser->getResponseHeader("Content-Location").size() != 0)
+        {
+            std::string originatorUrl;
+            originatorUrl.assign(parser->getResponseHeader("Content-Location"));
+            parser->httpResponse->setOriginatorUrl(originatorUrl.c_str());
+        }
+
 
         /*
          * set ContentLength(ByteLength of the HttpReplyMessage) of this http response message
          */
-        std::string contentLength;
-        contentLength.assign(parser->getResponseHeader("Content-Length"));
-        parser->httpResponse->setByteLength(atol(contentLength.c_str()));
-        EV_DEBUG_NOMODULE << "Parsing HTTP Response Content-Length is:"<< parser->httpResponse->getByteLength() << endl;
+        if (parser->getResponseHeader("Content-Length").size() != 0)
+        {
+            std::string contentLength;
+            contentLength.assign(parser->getResponseHeader("Content-Length"));
+            parser->httpResponse->setByteLength(atol(contentLength.c_str()));
+            EV_DEBUG_NOMODULE << "Parsing HTTP Response Content-Length is:"<< parser->httpResponse->getByteLength() << endl;
+        }
 
         unsigned int status = parser->httpResponse->result();
 
@@ -470,7 +484,7 @@ std::string HttpResponsePraser::getResponseHeader(const char *name)
             return responseHeaders[i].second;
         }
     }
-    return NULL;
+    return "";
 }
 
 void HttpResponsePraser::check_transfer_encoding_chunked(bool *chunked, const Headers::value_type &item)
