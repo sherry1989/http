@@ -25,12 +25,20 @@
 class HarBrowser : public NSCHttpBrowser
 {
   protected:
+    /** Initialization of the component and startup of browse event scheduling */
     virtual void initialize(int stage);
+
+    /** Report final statistics */
+    virtual void finish();
 
     /** Format a Request message to HTTP Request Message Header */
     virtual std::string formatHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
 
     HarParser *pHarParser;
+
+    // Basic statistics
+    long requestSent;
+    long requestHarGenerated;
 };
 
 #endif

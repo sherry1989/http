@@ -28,6 +28,30 @@ void HarBrowser::initialize(int stage)
     }
 
     NSCHttpBrowser::initialize(stage);
+
+    if (stage == 1)
+    {
+        // Initialize statistics
+        requestSent = requestHarGenerated = 0;
+
+        // Initialize watches
+        WATCH(requestSent);
+        WATCH(requestHarGenerated);
+    }
+}
+
+void HarBrowser::finish()
+{
+    // Call the parent class finish. Takes care of most of the reporting.
+    NSCHttpBrowser::finish();
+
+    // Report sockets related statistics.
+    EV_SUMMARY << "Request sent: " << requestSent << endl;
+    EV_SUMMARY << "Request har generated: " << requestHarGenerated << endl;
+
+    // Record the sockets related statistics
+    recordScalar("request.sent", requestSent);
+    recordScalar("request.harGenerated", requestHarGenerated);
 }
 
 /*
@@ -41,6 +65,8 @@ void HarBrowser::initialize(int stage)
  */
 std::string HarBrowser::formatHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest)
 {
+    requestSent++;
+
     std::ostringstream str;
 
     /*
@@ -71,6 +97,8 @@ std::string HarBrowser::formatHttpRequestMessageHeader(const RealHttpRequestMess
         EV_ERROR << "Unsupported request type " << res[0] << " for " << httpRequest->heading() << endl;
         return NSCHttpBrowser::formatHttpRequestMessageHeader(httpRequest);
     }
+
+    requestHarGenerated++;
 
     /*
      * pre-process the headerFrame

@@ -82,6 +82,9 @@ void NSCHttpBrowser::initialize(int stage)
 
         chooseStrategy(pipeliningMode, SvrSupportDetect);
 
+        // Initialize statistics
+        responseMessageReceived = responseParsed = 0;
+
         // Initialize watches
         WATCH(htmlRequested);
         WATCH(htmlReceived);
@@ -99,7 +102,24 @@ void NSCHttpBrowser::initialize(int stage)
 
         WATCH(numBroken);
         WATCH(socketsOpened);
+
+        WATCH(responseMessageReceived);
+        WATCH(responseParsed);
     }
+}
+
+void NSCHttpBrowser::finish()
+{
+    // Call the parent class finish. Takes care of most of the reporting.
+    HttpBrowser::finish();
+
+    // Report sockets related statistics.
+    EV_SUMMARY << "Response Message Received: " << responseMessageReceived << endl;
+    EV_SUMMARY << "Response Parsed: " << responseParsed << endl;
+
+    // Record the sockets related statistics
+    recordScalar("response.messageRec", responseMessageReceived);
+    recordScalar("response.parsed", responseParsed);
 }
 
 void NSCHttpBrowser::socketEstablished(int connId, void *yourPtr)
@@ -165,6 +185,8 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
         return;
     }
 
+    responseMessageReceived++;
+
     NSCSockData *sockdata = (NSCSockData*)yourPtr;
     TCPSocket *socket = sockdata->socket;
 
@@ -187,6 +209,8 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
      */
     if (prasedMsg != NULL)
     {
+        responseParsed++;
+
         HttpContentType contentType = CT_UNKNOWN;
         contentType = pSvrSupportDetect->setSvrSupportForSock(sockdata, prasedMsg);
 

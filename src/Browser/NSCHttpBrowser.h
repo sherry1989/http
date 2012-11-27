@@ -63,6 +63,9 @@ class NSCHttpBrowser : public HttpBrowser
         /** Initialization of the component and startup of browse event scheduling */
         virtual void initialize(int stage);
 
+        /** Report final statistics */
+        virtual void finish();
+
     protected:
         /** @name TCPSocket::CallbackInterface callback methods */
         //@{
