@@ -13,7 +13,7 @@ def MakeDefaultHeaders(list_o_dicts):
   for kvdict in list_o_dicts:
     key = kvdict["name"]
     val = kvdict["value"]
-    if key == "host":
+    if key == "Host":
       key = ":host"
     if key in retval:
       retval[key] = retval[key] + '\0' + val
