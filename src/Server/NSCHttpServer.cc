@@ -469,7 +469,7 @@ std::string NSCHttpServer::formatByteResponseMessage(HttpReplyMessage *httpRespo
                 CRLF
                 [ message-body ]
  */
-std::string NSCHttpServer::formatHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse)
+std::string NSCHttpServer::formatHttpResponseMessageHeader(RealHttpReplyMessage *httpResponse)
 {
     std::ostringstream str;
 
@@ -1009,7 +1009,7 @@ std::string NSCHttpServer::formatHttpResponseMessageHeader(const RealHttpReplyMe
 }
 
 /** Deflate a HTTP Response message header using the Name-Value zlib dictionary */
-std::string NSCHttpServer::formatSpdyZlibHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse)
+std::string NSCHttpServer::formatSpdyZlibHttpResponseMessageHeader(RealHttpReplyMessage *httpResponse)
 {
     std::string resHeader = formatHttpResponseMessageHeader(httpResponse);
 
@@ -1088,7 +1088,7 @@ std::string NSCHttpServer::formatSpdyZlibHttpResponseMessageHeader(const RealHtt
 }
 
 /** Format a response message header to zlib-deflated SPDY header block */
-std::string NSCHttpServer::formatSpdyZlibHeaderBlockResponseMessageHeader(const RealHttpReplyMessage *httpResponse)
+std::string NSCHttpServer::formatSpdyZlibHeaderBlockResponseMessageHeader(RealHttpReplyMessage *httpResponse)
 {
     std::ostringstream str;
 
@@ -1096,7 +1096,7 @@ std::string NSCHttpServer::formatSpdyZlibHeaderBlockResponseMessageHeader(const 
 }
 
 /** Format a response message to HTTP Response Message Header */
-std::string NSCHttpServer::formatHttpNFResponseMessageHeader(const RealHttpReplyMessage *httpResponse)
+std::string NSCHttpServer::formatHttpNFResponseMessageHeader(RealHttpReplyMessage *httpResponse)
 {
     std::ostringstream str;
 

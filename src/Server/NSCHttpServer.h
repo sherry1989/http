@@ -65,16 +65,16 @@ class NSCHttpServer : public HttpServer
         virtual std::string formatByteResponseMessage(HttpReplyMessage *httpResponse);
 
         /** Format a response message to HTTP Response Message Header */
-        virtual std::string formatHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
+        virtual std::string formatHttpResponseMessageHeader(RealHttpReplyMessage *httpResponse);
 
         /** Deflate a HTTP Response message header using the Name-Value zlib dictionary */
-        virtual std::string formatSpdyZlibHttpResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
+        virtual std::string formatSpdyZlibHttpResponseMessageHeader(RealHttpReplyMessage *httpResponse);
 
         /** Format a response message header to zlib-deflated SPDY header block */
-        virtual std::string formatSpdyZlibHeaderBlockResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
+        virtual std::string formatSpdyZlibHeaderBlockResponseMessageHeader(RealHttpReplyMessage *httpResponse);
 
         /** Format a response message to HTTPNF Response Message Header */
-        virtual std::string formatHttpNFResponseMessageHeader(const RealHttpReplyMessage *httpResponse);
+        virtual std::string formatHttpNFResponseMessageHeader(RealHttpReplyMessage *httpResponse);
 
         void handleSelfDelayedReplyMessage(cMessage *msg);
 
