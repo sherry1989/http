@@ -197,7 +197,9 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
                         //---Note: here should cmp ":status-text" before ":status", or ":status" may get ":status-text" value
                         if (timings[i].key.find("wait") != string::npos)
                         {
-                            replyDelay = (double)atof(timings[i].val.c_str());
+                            replyDelay = (double)(atof(timings[i].val.c_str())/1000);
+                            EV_DEBUG << "Find wait time for requestURI " << httpResponse->requestURI() <<", replyDelay is " << replyDelay << endl;
+                            break;
                         }
                     }
                     if (i == timings.size())
