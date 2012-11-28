@@ -22,16 +22,38 @@ HarParser::HarParser()
     /*
      * 1. get the har file and parse it
      */
-    int n_files;
-    n_files = 1;
+    ifstream harFile("harinfo.txt", ios::in);
+    vector<string> hars;
+
+    if (harFile.good())
+    {
+        while (!harFile.eof())
+        {
+            string line;
+            getline(harFile, line);
+
+            if (line.size() != 0)
+            {
+                hars.push_back("mnot/"+line);
+                EV_DEBUG_NOMODULE << "read line #" << hars.size() << ". line content is: " << line << endl;
+                EV_DEBUG_NOMODULE << "read line #" << hars.size() << ". store in hars is: " << hars.back() << endl;
+            }
+        }
+
+    }
+    else
+    {
+        throw cRuntimeError("Can not open file, harinfo.txt");
+    }
+
+    int n_files = hars.size();
     char** files = new char*[n_files];
 
-    files[0] = new char[50];
-    files[0][0] = '\0';
-//    strcpy(files[0], "www.baidu.com.har\0");
-//    strcpy(files[0], "www.sina.com.cn.har\0");
-    strcpy(files[0], "www.sina.com.cn_firebug.har\0");
-//    strcpy(files[0], "music.10086.cn.har\0");
+    for (unsigned int i = 0; i < n_files; i++)
+    {
+        files[i] = new char[hars[i].size() + 1];
+        strcpy(files[i], hars[i].c_str());
+    }
 
     ParseHarFiles(n_files, files, &requests, &responses, &timings);
 
@@ -77,13 +99,27 @@ HarParser::HarParser()
 
                 /*
                  * if there is ";" in path, cannot simply use it as key
-                 * if do so, when parse the sitedef file, will get error
+                 * if do so, when parse the sitedef file, will get error, since we use ";" as the token to seperate resource and its size
                  * so just use the substring before first';' to be the key
                  */
                 if (key.find(";") != string::npos)
                 {
                     // Parse the key string on ;, and just use the substring before first';' to be the key
                     cStringTokenizer tokenizer = cStringTokenizer(key.c_str(), ";");
+                    std::vector<std::string> res = tokenizer.asVector();
+                    key = res[0];
+                    EV_DEBUG_NOMODULE << "change key to " << key << endl;
+                }
+
+                /*
+                 * if there is "[" in path, cannot simply use it as key
+                 * if do so, when parse the sitedef file, will get error, treat it as sectionsub
+                 * so just use the substring before first'[' to be the key
+                 */
+                if (key.find("[") != string::npos)
+                {
+                    // Parse the key string on ;, and just use the substring before first';' to be the key
+                    cStringTokenizer tokenizer = cStringTokenizer(key.c_str(), "[");
                     std::vector<std::string> res = tokenizer.asVector();
                     key = res[0];
                     EV_DEBUG_NOMODULE << "change key to " << key << endl;
