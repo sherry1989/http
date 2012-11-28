@@ -168,8 +168,8 @@ std::string HarBrowser::formatHttpRequestMessageHeader(const RealHttpRequestMess
         }
         else if (k.find(":host") != string::npos)
         {
-            str << "host: " << v << "\r\n";
-            EV_DEBUG << "generate header line: " << "host: " << v << endl;
+            str << "Host: " << v << "\r\n";
+            EV_DEBUG << "generate header line: " << "Host: " << v << endl;
         }
     }
     /*************************************Finish generating HTTP Request Header*************************************/
