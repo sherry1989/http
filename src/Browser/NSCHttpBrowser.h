@@ -141,6 +141,10 @@ class NSCHttpBrowser : public HttpBrowser
 
         RealHttpRequestMessage *changeRequestToReal(HttpRequestMessage *httpRequest);
 
+        // Basic statistics
+        long responseMessageReceived;
+        long responseParsed;
+
         /*
          * 指向各类策略基类的指针，用于调用不同的策略
          */
