@@ -6,6 +6,7 @@
  */
 
 #include "HarParser.h"
+#include "HttpUtils.h"
 #include "HttpLogdefs.h"
 #include <omnetpp.h>
 #include <cassert>
@@ -27,17 +28,27 @@ HarParser::HarParser()
 
     if (harFile.good())
     {
+        string directory = "";
         while (!harFile.eof())
         {
             string line;
             getline(harFile, line);
 
-            if (line.size() != 0)
+            if (line.empty() || line[0]=='#')
+                continue;
+
+            if (directory.size() == 0 && line.find("D:") != string::npos)
             {
-                hars.push_back("mnot/"+line);
+                directory.assign(line.substr(2));
+                EV_DEBUG_NOMODULE << "read line and it's a directory line. directory is: " << directory << endl;
+            }
+            else
+            {
+                hars.push_back(directory + line);
                 EV_DEBUG_NOMODULE << "read line #" << hars.size() << ". line content is: " << line << endl;
                 EV_DEBUG_NOMODULE << "read line #" << hars.size() << ". store in hars is: " << hars.back() << endl;
             }
+
         }
 
     }
@@ -47,6 +58,7 @@ HarParser::HarParser()
     }
 
     int n_files = hars.size();
+    EV_DEBUG_NOMODULE << "n_files is: " << n_files << endl;
     char** files = new char*[n_files];
 
     for (unsigned int i = 0; i < n_files; i++)
@@ -142,6 +154,14 @@ HarParser::HarParser()
                  */
                 pagedef << key << endl;
                 sitedef << key << ";";
+//                if (key.size() == 1)
+//                {
+//                    sitedef << key << ";";
+//                }
+//                else
+//                {
+//                    sitedef << trimLeft(key, "/") << ";";
+//                }
                 unsigned int k;
                 for (k = 0; k < responses[i].size(); ++k)
                 {
