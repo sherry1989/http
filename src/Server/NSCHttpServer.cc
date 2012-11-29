@@ -51,11 +51,22 @@ void NSCHttpServer::initialize()
 
     protocolType = par("protocolType");
 
+    // Initialize statistics
     numBroken = 0;
     socketsOpened = 0;
+    if (protocolType != HTTP)
+    {
+        bytesBeforeDeflate = bytesAfterDeflate = 0;
+    }
 
+    // Initialize watches
     WATCH(numBroken);
     WATCH(socketsOpened);
+    if (protocolType != HTTP)
+    {
+        WATCH(bytesBeforeDeflate);
+        WATCH(bytesAfterDeflate);
+    }
 
     int rv = spdylay_zlib_deflate_hd_init(&deflater, 1, SPDYLAY_PROTO_SPDY3);
     if (rv != 0)
@@ -77,6 +88,17 @@ void NSCHttpServer::finish()
     spdylay_zlib_inflate_free(&inflater);
 
     HttpServer::finish();
+
+    if (protocolType != HTTP)
+    {
+        // Report sockets related statistics.
+        EV_SUMMARY << "Bytes Before Deflate: " << bytesBeforeDeflate << endl;
+        EV_SUMMARY << "Bytes After Deflate: " << bytesAfterDeflate << endl;
+
+        // Record the sockets related statistics
+        recordScalar("bytes.beforeDeflate", bytesBeforeDeflate);
+        recordScalar("bytes.AfterDeflate", bytesAfterDeflate);
+    }
 }
 
 std::string NSCHttpServer::generateBody()
@@ -1057,6 +1079,10 @@ std::string NSCHttpServer::formatSpdyZlibHttpResponseMessageHeader(RealHttpReply
     }
     else
     {
+        // doing statistics
+        bytesBeforeDeflate += nvbuflen;
+        bytesAfterDeflate += framelen;
+
         std::ostringstream zlibResHeader;
 
         //24 bit header length

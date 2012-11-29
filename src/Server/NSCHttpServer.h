@@ -109,6 +109,10 @@ class NSCHttpServer : public HttpServer
 
         spdylay_zlib deflater;
         spdylay_zlib inflater;
+
+        // Basic statistics
+        long bytesBeforeDeflate;
+        long bytesAfterDeflate;
 };
 
 #endif

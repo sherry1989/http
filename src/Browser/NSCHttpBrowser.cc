@@ -82,6 +82,10 @@ void NSCHttpBrowser::initialize(int stage)
 
         // Initialize statistics
         responseMessageReceived = responseParsed = 0;
+        if (protocolType != HTTP)
+        {
+            bytesBeforeDeflate = bytesAfterDeflate = 0;
+        }
 
         // Initialize watches
         WATCH(htmlRequested);
@@ -103,6 +107,12 @@ void NSCHttpBrowser::initialize(int stage)
 
         WATCH(responseMessageReceived);
         WATCH(responseParsed);
+
+        if (protocolType != HTTP)
+        {
+            WATCH(bytesBeforeDeflate);
+            WATCH(bytesAfterDeflate);
+        }
 
         int rv = spdylay_zlib_deflate_hd_init(&deflater, 1, SPDYLAY_PROTO_SPDY3);
 
@@ -131,10 +141,20 @@ void NSCHttpBrowser::finish()
     // Report sockets related statistics.
     EV_SUMMARY << "Response Message Received: " << responseMessageReceived << endl;
     EV_SUMMARY << "Response Parsed: " << responseParsed << endl;
+    if (protocolType != HTTP)
+    {
+        EV_SUMMARY << "Bytes Before Deflate: " << bytesBeforeDeflate << endl;
+        EV_SUMMARY << "Bytes After Deflate: " << bytesAfterDeflate << endl;
+    }
 
     // Record the sockets related statistics
     recordScalar("response.messageRec", responseMessageReceived);
     recordScalar("response.parsed", responseParsed);
+    if (protocolType != HTTP)
+    {
+        recordScalar("bytes.beforeDeflate", bytesBeforeDeflate);
+        recordScalar("bytes.AfterDeflate", bytesAfterDeflate);
+    }
 }
 
 void NSCHttpBrowser::socketEstablished(int connId, void *yourPtr)
@@ -1291,6 +1311,10 @@ std::string NSCHttpBrowser::formatSpdyZlibHttpRequestMessageHeader(const RealHtt
     }
     else
     {
+        // doing statistics
+        bytesBeforeDeflate += nvbuflen;
+        bytesAfterDeflate += framelen;
+
         std::ostringstream zlibReqHeader;
 
         //24 bit header length

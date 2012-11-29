@@ -144,6 +144,8 @@ class NSCHttpBrowser : public HttpBrowser
         // Basic statistics
         long responseMessageReceived;
         long responseParsed;
+        long bytesBeforeDeflate;
+        long bytesAfterDeflate;
 
         /*
          * 指向各类策略基类的指针，用于调用不同的策略
