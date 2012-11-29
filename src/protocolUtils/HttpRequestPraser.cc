@@ -13,8 +13,6 @@
 #include <cassert>
 #include <iomanip>
 
-#include "spdylay_zlib.h"
-
 namespace RequestPraser
 {
     static http_parser_settings parserCallback=
@@ -153,7 +151,7 @@ HttpRequestPraser::~HttpRequestPraser()
     pRequestParser = NULL;
 }
 
-RealHttpRequestMessage* HttpRequestPraser::praseHttpRequest(cPacket *msg, Protocol_Type protocolType)
+RealHttpRequestMessage* HttpRequestPraser::praseHttpRequest(cPacket *msg, Protocol_Type protocolType, spdylay_zlib *inflater)
 {
     ByteArrayMessage *byMsg = check_and_cast<ByteArrayMessage*>(msg);
     size_t bufLength = byMsg->getByteLength();
@@ -173,7 +171,7 @@ RealHttpRequestMessage* HttpRequestPraser::praseHttpRequest(cPacket *msg, Protoc
             http_parser_execute(pRequestParser, &RequestPraser::parserCallback, const_cast<const char*>(buf), bufLength);
             break;
         case SPDY_ZLIB_HTTP:
-            spdyParser(const_cast<const char*>(buf), bufLength);
+            spdyParser(const_cast<const char*>(buf), bufLength, inflater);
             break;
         case SPDY_HEADER_BLOCK:
             http_parser_execute(pRequestParser, &RequestPraser::parserCallback, const_cast<const char*>(buf), bufLength);
@@ -204,7 +202,7 @@ RealHttpRequestMessage* HttpRequestPraser::praseHttpRequest(cPacket *msg, Protoc
     return httpRequest;
 }
 
-void HttpRequestPraser::spdyParser(const char *data,size_t len)
+void HttpRequestPraser::spdyParser(const char *data, size_t len, spdylay_zlib *inflater)
 {
     /*
      * 1. get the deflated header length out from the received message
@@ -219,13 +217,6 @@ void HttpRequestPraser::spdyParser(const char *data,size_t len)
     /*
      * 2. inflate the header depending on the length
      */
-    spdylay_zlib inflater;
-    int rv = spdylay_zlib_inflate_hd_init(&inflater, SPDYLAY_PROTO_SPDY3);
-
-    if (rv != 0)
-    {
-        EV_ERROR_NOMODULE << "spdylay_zlib_inflate_hd_init failed!" << endl;
-    }
 
     spdylay_buffer spdyBuf;
     spdylay_buffer_init(&spdyBuf, 4096);
@@ -244,12 +235,12 @@ void HttpRequestPraser::spdyParser(const char *data,size_t len)
 
 //    memcpy(uCharBuf, &data[3], defHeaderLen);
 
-    framelen = spdylay_zlib_inflate_hd(&inflater, &spdyBuf, uCharBuf, defHeaderLen);
+    framelen = spdylay_zlib_inflate_hd(inflater, &spdyBuf, uCharBuf, defHeaderLen);
 
     if (framelen < 0)
     {
         delete[] uCharBuf;
-        spdylay_zlib_inflate_free(&inflater);
+
         if (framelen == SPDYLAY_ERR_ZLIB)
         {
             throw cRuntimeError("spdylay_zlib_deflate_hd get Zlib error!");
@@ -275,7 +266,6 @@ void HttpRequestPraser::spdyParser(const char *data,size_t len)
 
         delete[] infBuf;
         delete[] uCharBuf;
-        spdylay_zlib_inflate_free(&inflater);
 
         /*
          * 4. add body back to the request message to form the original http message

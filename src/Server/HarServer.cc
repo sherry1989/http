@@ -48,19 +48,13 @@ void HarServer::initialize(int stage)
 
 void HarServer::finish()
 {
-    EV_SUMMARY << "HTML documents served " << htmlDocsServed << "\n";
-    EV_SUMMARY << "Image resources served " << imgResourcesServed << "\n";
-    EV_SUMMARY << "Text resources served " << textResourcesServed << "\n";
+    NSCHttpServer::finish();
+
     EV_SUMMARY << "Media resources served " << mediaResourcesServed << "\n";
     EV_SUMMARY << "Other resources served " << otherResourcesServed << "\n";
-    EV_SUMMARY << "Bad requests " << badRequests << "\n";
 
-    recordScalar("HTML.served", htmlDocsServed);
-    recordScalar("images.served", imgResourcesServed);
-    recordScalar("text.served", textResourcesServed);
     recordScalar("media.served", mediaResourcesServed);
     recordScalar("other.served", otherResourcesServed);
-    recordScalar("bad.requests", badRequests);
 }
 
 /*
@@ -151,7 +145,7 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
 
     HttpRequestPraser *praser = new HttpRequestPraser();
 
-    cPacket *prasedMsg = praser->praseHttpRequest(msg, protocolType);
+    cPacket *prasedMsg = praser->praseHttpRequest(msg, protocolType, &inflater);
 
     // Should be a HttpRequestMessage
     EV_DEBUG << "Socket data arrived on connection " << connId << ". Message=" << prasedMsg->getName() << ", kind=" << prasedMsg->getKind() << endl;

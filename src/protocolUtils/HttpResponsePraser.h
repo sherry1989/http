@@ -23,6 +23,8 @@ extern "C" {
 //#include <event.h>
 //#include <event2/bufferevent.h>
 
+#include "spdylay_zlib.h"
+
 typedef std::vector<std::pair<std::string, std::string> > Headers;
 
 class HttpResponsePraser
@@ -31,9 +33,9 @@ class HttpResponsePraser
         HttpResponsePraser();
         virtual ~HttpResponsePraser();
 
-        RealHttpReplyMessage* praseHttpResponse(cPacket *msg, Protocol_Type protocolType);
+        RealHttpReplyMessage* praseHttpResponse(cPacket *msg, Protocol_Type protocolType, spdylay_zlib *inflater);
 
-        void spdyParser(const char *data,size_t len);
+        void spdyParser(const char *data,size_t len, spdylay_zlib *inflater);
 
         void add_response_header(const std::string& name, const std::string& value);
 

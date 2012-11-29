@@ -21,13 +21,13 @@
 
 #include <iomanip>
 
-#include "spdylay_zlib.h"
 
 Define_Module(NSCHttpServer);
 
 NSCHttpServer::NSCHttpServer()
 {
     replyInfoPerSocket.clear();
+
 }
 NSCHttpServer::~NSCHttpServer()
 {
@@ -56,6 +56,27 @@ void NSCHttpServer::initialize()
 
     WATCH(numBroken);
     WATCH(socketsOpened);
+
+    int rv = spdylay_zlib_deflate_hd_init(&deflater, 1, SPDYLAY_PROTO_SPDY3);
+    if (rv != 0)
+    {
+        EV_ERROR << "spdylay_zlib_deflate_hd_init failed!" << endl;
+    }
+
+    rv = spdylay_zlib_inflate_hd_init(&inflater, SPDYLAY_PROTO_SPDY3);
+
+    if (rv != 0)
+    {
+        EV_ERROR_NOMODULE << "spdylay_zlib_inflate_hd_init failed!" << endl;
+    }
+}
+
+void NSCHttpServer::finish()
+{
+    spdylay_zlib_deflate_free(&deflater);
+    spdylay_zlib_inflate_free(&inflater);
+
+    HttpServer::finish();
 }
 
 std::string NSCHttpServer::generateBody()
@@ -102,7 +123,7 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
 
     HttpRequestPraser *praser = new HttpRequestPraser();
 
-    cPacket *prasedMsg = praser->praseHttpRequest(msg, protocolType);
+    cPacket *prasedMsg = praser->praseHttpRequest(msg, protocolType, &inflater);
 
     // Should be a HttpRequestMessage
     EV_DEBUG << "Socket data arrived on connection " << connId << ". Message=" << prasedMsg->getName() << ", kind=" << prasedMsg->getKind() << endl;
@@ -1013,15 +1034,6 @@ std::string NSCHttpServer::formatSpdyZlibHttpResponseMessageHeader(RealHttpReply
 {
     std::string resHeader = formatHttpResponseMessageHeader(httpResponse);
 
-    spdylay_zlib deflater;
-
-    int rv = spdylay_zlib_deflate_hd_init(&deflater, 1, SPDYLAY_PROTO_SPDY3);
-
-    if (rv != 0)
-    {
-        EV_ERROR << "spdylay_zlib_deflate_hd_init failed!" << endl;
-    }
-
     uint8_t *buf = NULL, *nvbuf = NULL;
     size_t buflen = 0, nvbuflen = 0;
 
@@ -1080,8 +1092,6 @@ std::string NSCHttpServer::formatSpdyZlibHttpResponseMessageHeader(RealHttpReply
 //        EV_DEBUG << "zlibReqHeader is: " << zlibResHeader.str() << endl;
 
         EV_DEBUG << "zlibReqHeader length is: " << zlibResHeader.str().length() << endl;
-
-        spdylay_zlib_deflate_free(&deflater);
 
         return zlibResHeader.str();
     }

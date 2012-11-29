@@ -27,8 +27,6 @@
 #include <iomanip>
 #include <memory.h>
 
-#include "spdylay_zlib.h"
-
 //redefine PipeSockData as NSCSockData
 struct NSCSockData :public PipeSockData
 {
@@ -105,11 +103,28 @@ void NSCHttpBrowser::initialize(int stage)
 
         WATCH(responseMessageReceived);
         WATCH(responseParsed);
+
+        int rv = spdylay_zlib_deflate_hd_init(&deflater, 1, SPDYLAY_PROTO_SPDY3);
+
+        if (rv != 0)
+        {
+            EV_ERROR << "spdylay_zlib_deflate_hd_init failed!" << endl;
+        }
+
+        rv = spdylay_zlib_inflate_hd_init(&inflater, SPDYLAY_PROTO_SPDY3);
+
+        if (rv != 0)
+        {
+            EV_ERROR_NOMODULE << "spdylay_zlib_inflate_hd_init failed!" << endl;
+        }
     }
 }
 
 void NSCHttpBrowser::finish()
 {
+    spdylay_zlib_deflate_free(&deflater);
+    spdylay_zlib_inflate_free(&inflater);
+
     // Call the parent class finish. Takes care of most of the reporting.
     HttpBrowser::finish();
 
@@ -200,7 +215,7 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
         EV_DEBUG << "Use an old HttpResponsePraser" << endl;
     }
 
-    cPacket *prasedMsg = sockdata->praser->praseHttpResponse(msg, protocolType);
+    cPacket *prasedMsg = sockdata->praser->praseHttpResponse(msg, protocolType, &inflater);
 
     /*
      * check if this response message is complete
@@ -1251,15 +1266,6 @@ std::string NSCHttpBrowser::formatSpdyZlibHttpRequestMessageHeader(const RealHtt
 {
     std::string reqHeader = formatHttpRequestMessageHeader(httpRequest);
 
-    spdylay_zlib deflater;
-
-    int rv = spdylay_zlib_deflate_hd_init(&deflater, 1, SPDYLAY_PROTO_SPDY3);
-
-    if (rv != 0)
-    {
-        EV_ERROR << "spdylay_zlib_deflate_hd_init failed!" << endl;
-    }
-
     uint8_t *buf = NULL, *nvbuf = NULL;
     size_t buflen = 0, nvbuflen = 0;
 
@@ -1277,7 +1283,7 @@ std::string NSCHttpBrowser::formatSpdyZlibHttpRequestMessageHeader(const RealHtt
     EV_DEBUG << "header length before deflate is: " << nvbuflen << endl;
     EV_DEBUG << "header before deflate is: " << nvbuf << endl;
     EV_DEBUG << "header length after deflate is: " << framelen << endl;
-//    EV_DEBUG << "header after deflate is: " << buf << endl;
+    EV_DEBUG << "header after deflate is: " << buf << endl;
 
     if (framelen == SPDYLAY_ERR_ZLIB)
     {
@@ -1320,8 +1326,6 @@ std::string NSCHttpBrowser::formatSpdyZlibHttpRequestMessageHeader(const RealHtt
 //        EV_DEBUG << "zlibReqHeader is: " << zlibReqHeader.str() << endl;
 
         EV_DEBUG << "zlibReqHeader length is: " << zlibReqHeader.str().length() << endl;
-
-        spdylay_zlib_deflate_free(&deflater);
 
         return zlibReqHeader.str();
     }

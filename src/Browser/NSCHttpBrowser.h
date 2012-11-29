@@ -21,6 +21,8 @@
 #include "CSvrSupportDetectBase.h"
 #include "ProtocolTypeDef.h"
 
+#include "spdylay_zlib.h"
+
 #include <omnetpp.h>
 
 /**
@@ -148,6 +150,9 @@ class NSCHttpBrowser : public HttpBrowser
 
         //策略选择，确定派生类
         void chooseStrategy(Pipelining_Mode_Type pipeliningMode, SvrSupportDetect_Method_Type SvrSupportDetect);
+
+        spdylay_zlib deflater;
+        spdylay_zlib inflater;
 };
 
 #endif

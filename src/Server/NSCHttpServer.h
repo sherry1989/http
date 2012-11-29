@@ -19,6 +19,8 @@
 #include "HttpServer.h"
 #include "ProtocolTypeDef.h"
 
+#include "spdylay_zlib.h"
+
 #include <omnetpp.h>
 #include <map>
 #include <deque>
@@ -38,6 +40,9 @@ class NSCHttpServer : public HttpServer
 
         /** Initialization of the component and startup of browse event scheduling */
         virtual void initialize();
+
+        /** Report final statistics */
+        virtual void finish();
 
         /** Create a random body according to the site content random distributions. */
         virtual std::string generateBody();
@@ -101,6 +106,9 @@ class NSCHttpServer : public HttpServer
         Protocol_Type protocolType;
 
         RealHttpReplyMessage *changeReplyToReal(HttpReplyMessage *httpResponse);
+
+        spdylay_zlib deflater;
+        spdylay_zlib inflater;
 };
 
 #endif
