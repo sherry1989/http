@@ -114,6 +114,11 @@ void NSCHttpBrowser::initialize(int stage)
             WATCH(bytesAfterDeflate);
         }
 
+        // Initialize cOutputVectors
+        recvResTimeVec.setName("Receive Response SimTime");
+        sendReqTimeVec.setName("Send Request SimTime");
+        deflateRatioVec.setName("Deflate Ratio");
+
         int rv = spdylay_zlib_deflate_hd_init(&deflater, 1, SPDYLAY_PROTO_SPDY3);
 
         if (rv != 0)
@@ -250,6 +255,7 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
         contentType = pSvrSupportDetect->setSvrSupportForSock(sockdata, prasedMsg);
 
         handleDataMessage(prasedMsg);
+        recvResTimeVec.record(simTime());
 
         delete sockdata->praser;
         sockdata->praser = NULL;
@@ -582,6 +588,7 @@ void NSCHttpBrowser::sendMessage(TCPSocket *socket, HttpRequestMessage *req)
 
             sendMsg = dynamic_cast<cMessage*>(byMsg);
             socket->send(sendMsg);
+            sendReqTimeVec.record(simTime());
 
 //            //#################   added for debug, should be deleted
 //            HttpRequestPraser *praser = new HttpRequestPraser();
@@ -1314,6 +1321,7 @@ std::string NSCHttpBrowser::formatSpdyZlibHttpRequestMessageHeader(const RealHtt
         // doing statistics
         bytesBeforeDeflate += nvbuflen;
         bytesAfterDeflate += framelen;
+        deflateRatioVec.recordWithTimestamp(simTime(), double(framelen)/double(nvbuflen));
 
         std::ostringstream zlibReqHeader;
 

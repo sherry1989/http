@@ -152,6 +152,7 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
 
     // call the message handler to process the message.
     HttpReplyMessage *reply = handleReceivedMessage(prasedMsg);
+    recvReqTimeVec.record(simTime());
 
     if (reply!=NULL)
     {

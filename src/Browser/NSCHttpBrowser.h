@@ -147,6 +147,11 @@ class NSCHttpBrowser : public HttpBrowser
         long bytesBeforeDeflate;
         long bytesAfterDeflate;
 
+        // Output Vectors
+        cOutVector recvResTimeVec;
+        cOutVector sendReqTimeVec;
+        cOutVector deflateRatioVec;
+
         /*
          * 指向各类策略基类的指针，用于调用不同的策略
          */

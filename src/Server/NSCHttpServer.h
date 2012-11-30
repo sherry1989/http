@@ -113,6 +113,11 @@ class NSCHttpServer : public HttpServer
         // Basic statistics
         long bytesBeforeDeflate;
         long bytesAfterDeflate;
+
+        // Output Vectors
+        cOutVector recvReqTimeVec;
+        cOutVector sendResTimeVec;
+        cOutVector deflateRatioVec;
 };
 
 #endif

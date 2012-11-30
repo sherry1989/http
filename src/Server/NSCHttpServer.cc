@@ -68,6 +68,11 @@ void NSCHttpServer::initialize()
         WATCH(bytesAfterDeflate);
     }
 
+    // Initialize cOutputVectors
+    recvReqTimeVec.setName("Receive Request SimTime");
+    sendResTimeVec.setName("Send Response SimTime");
+    deflateRatioVec.setName("Deflate Ratio");
+
     int rv = spdylay_zlib_deflate_hd_init(&deflater, 1, SPDYLAY_PROTO_SPDY3);
     if (rv != 0)
     {
@@ -152,6 +157,7 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
 
     // call the message handler to process the message.
     HttpReplyMessage *reply = handleReceivedMessage(prasedMsg);
+    recvReqTimeVec.record(simTime());
 
     if (reply!=NULL)
     {
@@ -449,6 +455,7 @@ void NSCHttpServer::sendMessage(TCPSocket *socket, HttpReplyMessage *reply)
 
             sendMsg = dynamic_cast<cMessage*>(byMsg);
             socket->send(sendMsg);
+            sendResTimeVec.record(simTime());
             break;
         }
 
@@ -1082,6 +1089,7 @@ std::string NSCHttpServer::formatSpdyZlibHttpResponseMessageHeader(RealHttpReply
         // doing statistics
         bytesBeforeDeflate += nvbuflen;
         bytesAfterDeflate += framelen;
+        deflateRatioVec.recordWithTimestamp(simTime(), double(framelen)/double(nvbuflen));
 
         std::ostringstream zlibResHeader;
 
