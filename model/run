@@ -1,6 +1,7 @@
+#!/bin/sh
+
 # ./run >run.txt
 
-#! /bin/sh
 ./../http -u Cmdenv -f ./script.ini -c single_connection_noPipe
 ./../http -u Cmdenv -f ./script.ini -c multi_connection_noPipe
 ./../http -u Cmdenv -f ./script.ini -c single_connection

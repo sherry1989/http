@@ -28,7 +28,7 @@ network simpleWebPPP
             parameters:
                 delay = 0.1us;
                 datarate = 1Mbps;
-                per = 25e-3;
+                per = 0;
         }
     submodules:
         configurator: IPv4NetworkConfigurator {
