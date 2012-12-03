@@ -145,6 +145,8 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
 
     HttpRequestPraser *praser = new HttpRequestPraser();
 
+    spdylay_zlib inflater = zlibPerSocket[socket].inflater;
+
     cPacket *prasedMsg = praser->praseHttpRequest(msg, protocolType, &inflater);
 
     // Should be a HttpRequestMessage
@@ -274,7 +276,7 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
  * Format an application TCP_TRANSFER_BYTESTREAM response message which can be sent though NSC TCP depence on the application layer protocol
  * the protocol type can be HTTP \ SPDY \ HTTPSM \ HTTPNF
  */
-std::string HarServer::formatByteResponseMessage(HttpReplyMessage *httpResponse)
+std::string HarServer::formatByteResponseMessage(TCPSocket *socket, HttpReplyMessage *httpResponse)
 {
     /*
      * Note: this is a RealHttpReplyMessage * pointer indeed
@@ -289,7 +291,7 @@ std::string HarServer::formatByteResponseMessage(HttpReplyMessage *httpResponse)
             resHeader = formatHttpResponseMessageHeader(realhttpResponse);
             break;
         case SPDY_ZLIB_HTTP:
-            resHeader = formatSpdyZlibHttpResponseMessageHeader(realhttpResponse);
+            resHeader = formatSpdyZlibHttpResponseMessageHeader(socket, realhttpResponse);
             break;
         case SPDY_HEADER_BLOCK:
             resHeader = formatSpdyZlibHeaderBlockResponseMessageHeader(realhttpResponse);

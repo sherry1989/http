@@ -72,26 +72,10 @@ void NSCHttpServer::initialize()
     recvReqTimeVec.setName("Receive Request SimTime");
     sendResTimeVec.setName("Send Response SimTime");
     deflateRatioVec.setName("Deflate Ratio");
-
-    int rv = spdylay_zlib_deflate_hd_init(&deflater, 1, SPDYLAY_PROTO_SPDY3);
-    if (rv != 0)
-    {
-        EV_ERROR << "spdylay_zlib_deflate_hd_init failed!" << endl;
-    }
-
-    rv = spdylay_zlib_inflate_hd_init(&inflater, SPDYLAY_PROTO_SPDY3);
-
-    if (rv != 0)
-    {
-        EV_ERROR_NOMODULE << "spdylay_zlib_inflate_hd_init failed!" << endl;
-    }
 }
 
 void NSCHttpServer::finish()
 {
-    spdylay_zlib_deflate_free(&deflater);
-    spdylay_zlib_inflate_free(&inflater);
-
     HttpServer::finish();
 
     if (protocolType != HTTP)
@@ -139,6 +123,62 @@ std::string NSCHttpServer::generateBody()
     return result;
 }
 
+void NSCHttpServer::socketEstablished(int connId, void *yourPtr)
+{
+    HttpServer::socketEstablished(connId, yourPtr);
+
+    TCPSocket *socket = (TCPSocket*)yourPtr;
+    if (true == initSockZlibInfo(socket))
+    {
+        EV_DEBUG << "Socket established and initSockZlibInfo success on connection " << connId << endl;
+    }
+    else
+    {
+        EV_ERROR << "Socket established and initSockZlibInfo failed on connection " << connId << endl;
+    }
+}
+
+void NSCHttpServer::socketClosed(int connId, void *yourPtr)
+{
+    EV_INFO << "connection closed. Connection id " << connId << endl;
+
+    if (yourPtr==NULL)
+    {
+        EV_ERROR << "Socket establish failure. Null pointer" << endl;
+        return;
+    }
+    // Cleanup
+    TCPSocket *socket = (TCPSocket*)yourPtr;
+    removeSockZlibInfo(socket);
+    sockCollection.removeSocket(socket);
+    delete socket;
+}
+
+void NSCHttpServer::socketFailure(int connId, void *yourPtr, int code)
+{
+    EV_WARNING << "connection broken. Connection id " << connId << endl;
+    numBroken++;
+
+    EV_INFO << "connection closed. Connection id " << connId << endl;
+
+    if (yourPtr==NULL)
+    {
+        EV_ERROR << "Socket establish failure. Null pointer" << endl;
+        return;
+    }
+    TCPSocket *socket = (TCPSocket*)yourPtr;
+
+    if (code==TCP_I_CONNECTION_RESET)
+        EV_WARNING << "Connection reset!\n";
+    else if (code==TCP_I_CONNECTION_REFUSED)
+        EV_WARNING << "Connection refused!\n";
+
+    // Cleanup
+    removeSockZlibInfo(socket);
+    sockCollection.removeSocket(socket);
+    delete socket;
+}
+
 void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool urgent)
 {
     if (yourPtr==NULL)
@@ -149,6 +189,8 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
     TCPSocket *socket = (TCPSocket*)yourPtr;
 
     HttpRequestPraser *praser = new HttpRequestPraser();
+
+    spdylay_zlib inflater = zlibPerSocket[socket].inflater;
 
     cPacket *prasedMsg = praser->praseHttpRequest(msg, protocolType, &inflater);
 
@@ -438,7 +480,7 @@ void NSCHttpServer::sendMessage(TCPSocket *socket, HttpReplyMessage *reply)
         {
             ByteArrayMessage *byMsg = new ByteArrayMessage(reply->getName());
 
-            std::string resByteArray = formatByteResponseMessage(reply);
+            std::string resByteArray = formatByteResponseMessage(socket, reply);
 
             sendBytes = resByteArray.length();
 
@@ -468,7 +510,7 @@ void NSCHttpServer::sendMessage(TCPSocket *socket, HttpReplyMessage *reply)
  * Format an application TCP_TRANSFER_BYTESTREAM response message which can be sent though NSC TCP depence on the application layer protocol
  * the protocol type can be HTTP \ SPDY \ HTTPSM \ HTTPNF
  */
-std::string NSCHttpServer::formatByteResponseMessage(HttpReplyMessage *httpResponse)
+std::string NSCHttpServer::formatByteResponseMessage(TCPSocket *socket, HttpReplyMessage *httpResponse)
 {
     RealHttpReplyMessage *realhttpResponse = changeReplyToReal(httpResponse);
     std::string resHeader;
@@ -479,7 +521,7 @@ std::string NSCHttpServer::formatByteResponseMessage(HttpReplyMessage *httpRespo
             resHeader = formatHttpResponseMessageHeader(realhttpResponse);
             break;
         case SPDY_ZLIB_HTTP:
-            resHeader = formatSpdyZlibHttpResponseMessageHeader(realhttpResponse);
+            resHeader = formatSpdyZlibHttpResponseMessageHeader(socket, realhttpResponse);
             break;
         case SPDY_HEADER_BLOCK:
             resHeader = formatSpdyZlibHeaderBlockResponseMessageHeader(realhttpResponse);
@@ -1059,7 +1101,7 @@ std::string NSCHttpServer::formatHttpResponseMessageHeader(RealHttpReplyMessage 
 }
 
 /** Deflate a HTTP Response message header using the Name-Value zlib dictionary */
-std::string NSCHttpServer::formatSpdyZlibHttpResponseMessageHeader(RealHttpReplyMessage *httpResponse)
+std::string NSCHttpServer::formatSpdyZlibHttpResponseMessageHeader(TCPSocket *socket, RealHttpReplyMessage *httpResponse)
 {
     std::string resHeader = formatHttpResponseMessageHeader(httpResponse);
 
@@ -1068,6 +1110,8 @@ std::string NSCHttpServer::formatSpdyZlibHttpResponseMessageHeader(RealHttpReply
 
     nvbuf = (uint8_t *)resHeader.c_str();
     nvbuflen = resHeader.length();
+
+    spdylay_zlib deflater = zlibPerSocket[socket].deflater;
 
     buflen = spdylay_zlib_deflate_hd_bound(&deflater, nvbuflen);
     buf = new uint8_t[buflen];
@@ -1187,4 +1231,38 @@ RealHttpReplyMessage *NSCHttpServer::changeReplyToReal(HttpReplyMessage *httpRes
     httpResponse = NULL;
 
     return realhttpResponse;
+}
+
+bool NSCHttpServer::initSockZlibInfo(TCPSocket *sock)
+{
+    ZlibInfo zlib;
+
+    int rvD = spdylay_zlib_deflate_hd_init(&zlib.deflater, 1, SPDYLAY_PROTO_SPDY3);
+    if (rvD != 0)
+    {
+        EV_ERROR << "spdylay_zlib_deflate_hd_init failed!" << endl;
+    }
+
+    int rvI = spdylay_zlib_inflate_hd_init(&zlib.inflater, SPDYLAY_PROTO_SPDY3);
+    if (rvI != 0)
+    {
+        EV_ERROR_NOMODULE << "spdylay_zlib_inflate_hd_init failed!" << endl;
+    }
+
+    zlib.setZlib = !(rvD | rvI);
+
+    zlibPerSocket.insert(TCPSocket_Zlib_Map::value_type(sock, zlib));
+
+    return zlib.setZlib;
+}
+
+void NSCHttpServer::removeSockZlibInfo(TCPSocket *sock)
+{
+    TCPSocket_Zlib_Map::iterator i = zlibPerSocket.find(sock);
+    if (i!=zlibPerSocket.end())
+    {
+        spdylay_zlib_deflate_free(&(i->second.deflater));
+        spdylay_zlib_inflate_free(&(i->second.inflater));
+        zlibPerSocket.erase(i);
+    }
 }

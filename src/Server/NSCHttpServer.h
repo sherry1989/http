@@ -19,8 +19,6 @@
 #include "HttpServer.h"
 #include "ProtocolTypeDef.h"
 
-#include "spdylay_zlib.h"
-
 #include <omnetpp.h>
 #include <map>
 #include <deque>
@@ -44,6 +42,12 @@ class NSCHttpServer : public HttpServer
         /** Report final statistics */
         virtual void finish();
 
+        /** Handle incoming messages */
+        virtual void handleMessage(cMessage *msg);
+
+
+    protected:
+
         /** Create a random body according to the site content random distributions. */
         virtual std::string generateBody();
 
@@ -54,26 +58,45 @@ class NSCHttpServer : public HttpServer
          */
         virtual void socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool urgent);
 
-        /** Handle incoming messages */
-        virtual void handleMessage(cMessage *msg);
-
         /** send HTTP reply message though TCPSocket depends on the TCP DataTransferMode*/
         virtual void sendMessage(TCPSocket *socket, HttpReplyMessage *reply);
 
         /** Handle a received data message, e.g. check if the content requested exists. */
         virtual HttpReplyMessage *handleReceivedMessage(cMessage *msg);
 
+        void handleSelfDelayedReplyMessage(cMessage *msg);
+
+        virtual void handleSelfMessages(cMessage *msg);
+
+        /**
+         * Handler for socket established events.
+         * Only used to update statistics.
+         */
+        virtual void socketEstablished(int connId, void *yourPtr);
+
+        /**
+         * Handler for socket closed event.
+         * Cleanup the resources for the closed socket.
+         */
+        virtual void socketClosed(int connId, void *yourPtr);
+
+        /**
+         * Handler for socket failure event.
+         * Very basic handling -- displays warning and cleans up resources.
+         */
+        virtual void socketFailure(int connId, void *yourPtr, int code);
+
         /*
          * Format an application TCP_TRANSFER_BYTESTREAM response message which can be sent though NSC TCP depence on the application layer protocol
          * the protocol type can be HTTP \ SPDY \ HTTPS+M \ HTTPNF
          */
-        virtual std::string formatByteResponseMessage(HttpReplyMessage *httpResponse);
+        virtual std::string formatByteResponseMessage(TCPSocket *socket, HttpReplyMessage *httpResponse);
 
         /** Format a response message to HTTP Response Message Header */
         virtual std::string formatHttpResponseMessageHeader(RealHttpReplyMessage *httpResponse);
 
         /** Deflate a HTTP Response message header using the Name-Value zlib dictionary */
-        virtual std::string formatSpdyZlibHttpResponseMessageHeader(RealHttpReplyMessage *httpResponse);
+        virtual std::string formatSpdyZlibHttpResponseMessageHeader(TCPSocket *socket, RealHttpReplyMessage *httpResponse);
 
         /** Format a response message header to zlib-deflated SPDY header block */
         virtual std::string formatSpdyZlibHeaderBlockResponseMessageHeader(RealHttpReplyMessage *httpResponse);
@@ -81,9 +104,10 @@ class NSCHttpServer : public HttpServer
         /** Format a response message to HTTPNF Response Message Header */
         virtual std::string formatHttpNFResponseMessageHeader(RealHttpReplyMessage *httpResponse);
 
-        void handleSelfDelayedReplyMessage(cMessage *msg);
+        bool initSockZlibInfo(TCPSocket *sock);
 
-        virtual void handleSelfMessages(cMessage *msg);
+        void removeSockZlibInfo(TCPSocket *sock);
+
 
     protected:
         /**
@@ -97,7 +121,7 @@ class NSCHttpServer : public HttpServer
         typedef std::deque<ReplyInfo> HttpReplyInfoQueue;
 
         /**
-         * A list of http requests for each socket
+         * A list of http responses for each socket
          */
         typedef std::map<TCPSocket *, HttpReplyInfoQueue> TCPSocket_ReplyInfo_Map;
 
@@ -107,8 +131,12 @@ class NSCHttpServer : public HttpServer
 
         RealHttpReplyMessage *changeReplyToReal(HttpReplyMessage *httpResponse);
 
-        spdylay_zlib deflater;
-        spdylay_zlib inflater;
+        /**
+         * A list of deflater or inflater for each socket
+         */
+        typedef std::map<TCPSocket *, ZlibInfo> TCPSocket_Zlib_Map;
+
+        TCPSocket_Zlib_Map zlibPerSocket;
 
         // Basic statistics
         long bytesBeforeDeflate;

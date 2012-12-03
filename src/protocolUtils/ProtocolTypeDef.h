@@ -16,5 +16,15 @@ const Protocol_Type HTTPNF = 4;
 
 #include "httpProtocol.h"
 
+#include "spdylay_zlib.h"
+#include <map>
+
+struct ZlibInfo
+{
+        bool setZlib;
+        spdylay_zlib deflater;
+        spdylay_zlib inflater;
+};
+
 
 #endif /* PROTOCOLTYPEDEF_H_ */

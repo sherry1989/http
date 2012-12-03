@@ -47,7 +47,7 @@ class HarServer : public NSCHttpServer
      * Format an application TCP_TRANSFER_BYTESTREAM response message which can be sent though NSC TCP depence on the application layer protocol
      * the protocol type can be HTTP \ SPDY \ HTTPS+M \ HTTPNF
      */
-    virtual std::string formatByteResponseMessage(HttpReplyMessage *httpResponse);
+    virtual std::string formatByteResponseMessage(TCPSocket *socket, HttpReplyMessage *httpResponse);
 
     /** Format a response message to HTTP Response Message Header */
     virtual std::string formatHttpResponseMessageHeader(RealHttpReplyMessage *httpResponse);
