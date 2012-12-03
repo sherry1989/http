@@ -19,19 +19,10 @@
 #include "CPCSvrSupportDetect.h"
 #include "CPHSvrSupportDetect.h"
 #include "ByteArrayMessage.h"
-#include "HttpResponsePraser.h"
-
-#include "HttpRequestPraser.h"
 
 #include <stdexcept>
 #include <iomanip>
 #include <memory.h>
-
-//redefine PipeSockData as NSCSockData
-struct NSCSockData :public PipeSockData
-{
-    HttpResponsePraser *praser;
-};
 
 Define_Module(NSCHttpBrowser);
 
@@ -118,28 +109,11 @@ void NSCHttpBrowser::initialize(int stage)
         recvResTimeVec.setName("Receive Response SimTime");
         sendReqTimeVec.setName("Send Request SimTime");
         deflateRatioVec.setName("Deflate Ratio");
-
-        int rv = spdylay_zlib_deflate_hd_init(&deflater, 1, SPDYLAY_PROTO_SPDY3);
-
-        if (rv != 0)
-        {
-            EV_ERROR << "spdylay_zlib_deflate_hd_init failed!" << endl;
-        }
-
-        rv = spdylay_zlib_inflate_hd_init(&inflater, SPDYLAY_PROTO_SPDY3);
-
-        if (rv != 0)
-        {
-            EV_ERROR_NOMODULE << "spdylay_zlib_inflate_hd_init failed!" << endl;
-        }
     }
 }
 
 void NSCHttpBrowser::finish()
 {
-    spdylay_zlib_deflate_free(&deflater);
-    spdylay_zlib_inflate_free(&inflater);
-
     // Call the parent class finish. Takes care of most of the reporting.
     HttpBrowser::finish();
 
@@ -210,7 +184,7 @@ void NSCHttpBrowser::socketEstablished(int connId, void *yourPtr)
 
         // change message send method to adapt to the use of NSC
         //socket->send(msg);
-        sendMessage(socket, check_and_cast<HttpRequestMessage *>(msg));
+        sendMessage(sockdata, check_and_cast<HttpRequestMessage *>(msg));
 
         sockdata->pending++;
     }
@@ -240,7 +214,7 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
         EV_DEBUG << "Use an old HttpResponsePraser" << endl;
     }
 
-    cPacket *prasedMsg = sockdata->praser->praseHttpResponse(msg, protocolType, &inflater);
+    cPacket *prasedMsg = sockdata->praser->praseHttpResponse(msg, protocolType, &(sockdata->zlib.inflater));
 
     /*
      * check if this response message is complete
@@ -278,7 +252,7 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
 
                 // change message send method to adapt to the use of NSC
                 //socket->send(sendMsg);
-                sendMessage(socket, check_and_cast<HttpRequestMessage *>(sendMsg));
+                sendMessage(sockdata, check_and_cast<HttpRequestMessage *>(sendMsg));
 
                 sockdata->pending++;
             }
@@ -301,7 +275,7 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
 
                     // change message send method to adapt to the use of NSC
                     //socket->send(sendMsg);
-                    sendMessage(socket, check_and_cast<HttpRequestMessage *>(sendMsg));
+                    sendMessage(sockdata, check_and_cast<HttpRequestMessage *>(sendMsg));
 
                     sockdata->pending++;
                 }
@@ -316,7 +290,7 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
 
                     // change message send method to adapt to the use of NSC
                     //socket->send(sendMsg);
-                    sendMessage(socket, check_and_cast<HttpRequestMessage *>(sendMsg));
+                    sendMessage(sockdata, check_and_cast<HttpRequestMessage *>(sendMsg));
 
                     sockdata->pending++;
                 }
@@ -377,9 +351,13 @@ void NSCHttpBrowser::socketClosed(int connId, void *yourPtr)
     }
 
     NSCSockData *sockdata = (NSCSockData*)yourPtr;
-    TCPSocket *socket = sockdata->socket;
 
+    spdylay_zlib_deflate_free(&(sockdata->zlib.deflater));
+    spdylay_zlib_inflate_free(&(sockdata->zlib.inflater));
+
+    TCPSocket *socket = sockdata->socket;
     sockCollection.removeSocket(socket);
+
     std::string svrName(sockdata->svrName);
     sockCollectionMap[svrName].erase(socket);
 
@@ -404,6 +382,10 @@ void NSCHttpBrowser::socketFailure(int connId, void *yourPtr, int code)
         EV_WARNING << "Connection refused!\n";
 
     NSCSockData *sockdata = (NSCSockData*)yourPtr;
+
+    spdylay_zlib_deflate_free(&(sockdata->zlib.deflater));
+    spdylay_zlib_inflate_free(&(sockdata->zlib.inflater));
+
     TCPSocket *socket = sockdata->socket;
     sockCollection.removeSocket(socket);
 
@@ -474,6 +456,23 @@ void NSCHttpBrowser::submitToSocket(const char* moduleName, int connectPort, Htt
             sockdata->socket = socket;
             sockdata->pending = 0;
             sockdata->praser = NULL;
+
+            /*
+             * Initialize the zlib things
+             */
+            int rvD = spdylay_zlib_deflate_hd_init(&(sockdata->zlib.deflater), 1, SPDYLAY_PROTO_SPDY3);
+            if (rvD != 0)
+            {
+                EV_ERROR << "spdylay_zlib_deflate_hd_init failed!" << endl;
+            }
+
+            int rvI = spdylay_zlib_inflate_hd_init(&(sockdata->zlib.inflater), SPDYLAY_PROTO_SPDY3);
+            if (rvI != 0)
+            {
+                EV_ERROR_NOMODULE << "spdylay_zlib_inflate_hd_init failed!" << endl;
+            }
+            sockdata->zlib.setZlib = !(rvD | rvI);
+
 
             pSvrSupportDetect->initSvrSupportForSock(sockdata);
             socket->setCallbackObject(this, sockdata);
@@ -548,10 +547,12 @@ void NSCHttpBrowser::chooseStrategy(Pipelining_Mode_Type pipeliningMode, SvrSupp
 }
 
 /** send HTTP requesst message though TCPSocket depends on the TCP DataTransferMode*/
-void NSCHttpBrowser::sendMessage(TCPSocket *socket, HttpRequestMessage *req)
+void NSCHttpBrowser::sendMessage(NSCSockData *sockdata, HttpRequestMessage *req)
 {
     long sendBytes = 0;
     cMessage *sendMsg = NULL;
+
+    TCPSocket *socket = sockdata->socket;
 
     // add msg log when send it
     EV_INFO << "Sending request " << req->getName() << " to socket. Size is " << req->getByteLength() << " bytes" << endl;
@@ -570,7 +571,7 @@ void NSCHttpBrowser::sendMessage(TCPSocket *socket, HttpRequestMessage *req)
         {
             ByteArrayMessage *byMsg = new ByteArrayMessage(req->getName());
 
-            std::string resByteArray = formatByteRequestMessage(req);
+            std::string resByteArray = formatByteRequestMessage(sockdata, req);
 
             sendBytes = resByteArray.length();
 
@@ -611,7 +612,7 @@ void NSCHttpBrowser::sendMessage(TCPSocket *socket, HttpRequestMessage *req)
  * Format an application TCP_TRANSFER_BYTESTREAM response message which can be sent though NSC TCP depence on the application layer protocol
  * the protocol type can be HTTP \ SPDY \ HTTPSM \ HTTPNF
  */
-std::string NSCHttpBrowser::formatByteRequestMessage(HttpRequestMessage *httpRequest)
+std::string NSCHttpBrowser::formatByteRequestMessage(NSCSockData *sockdata, HttpRequestMessage *httpRequest)
 {
     RealHttpRequestMessage *realHttpRequest = changeRequestToReal(httpRequest);
 
@@ -623,7 +624,7 @@ std::string NSCHttpBrowser::formatByteRequestMessage(HttpRequestMessage *httpReq
             reqHeader = formatHttpRequestMessageHeader(realHttpRequest);
             break;
         case SPDY_ZLIB_HTTP:
-            reqHeader = formatSpdyZlibHttpRequestMessageHeader(realHttpRequest);
+            reqHeader = formatSpdyZlibHttpRequestMessageHeader(sockdata, realHttpRequest);
             break;
         case SPDY_HEADER_BLOCK:
             reqHeader = formatSpdyZlibHeaderBlockRequestMessageHeader(realHttpRequest);
@@ -1289,7 +1290,7 @@ std::string NSCHttpBrowser::formatHttpRequestMessageHeader(const RealHttpRequest
 }
 
 /** Deflate a HTTP Request message header using the Name-Value zlib dictionary */
-std::string NSCHttpBrowser::formatSpdyZlibHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest)
+std::string NSCHttpBrowser::formatSpdyZlibHttpRequestMessageHeader(NSCSockData *sockdata, const RealHttpRequestMessage *httpRequest)
 {
     std::string reqHeader = formatHttpRequestMessageHeader(httpRequest);
 
@@ -1298,6 +1299,8 @@ std::string NSCHttpBrowser::formatSpdyZlibHttpRequestMessageHeader(const RealHtt
 
     nvbuf = (uint8_t *)reqHeader.c_str();
     nvbuflen = reqHeader.length();
+
+    spdylay_zlib deflater = sockdata->zlib.deflater;
 
     buflen = spdylay_zlib_deflate_hd_bound(&deflater, nvbuflen);
     buf = new uint8_t[buflen];

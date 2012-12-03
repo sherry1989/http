@@ -20,10 +20,16 @@
 #include "CPipeReqBase.h"
 #include "CSvrSupportDetectBase.h"
 #include "ProtocolTypeDef.h"
-
-#include "spdylay_zlib.h"
+#include "HttpResponsePraser.h"
 
 #include <omnetpp.h>
+
+//redefine PipeSockData as NSCSockData
+struct NSCSockData :public PipeSockData
+{
+    HttpResponsePraser *praser;
+    ZlibInfo zlib;
+};
 
 /**
  * TODO - Generated class
@@ -51,13 +57,8 @@ class NSCHttpBrowser : public HttpBrowser
          * A list of active sockets for each server
          */
         typedef std::map<std::string, SocketSet> TCPSocketServerMap;
-        /**
-         * A list of http requests left for each server
-         */
-//        typedef std::map<std::string, HttpRequestQueue> ReqListPerSvr;
 
         TCPSocketServerMap sockCollectionMap;    ///< List of active sockets for each server
-//        ReqListPerSvr reqListPerSvr;    ///< List of http requests left for each server
 
     protected:
         /** @name cSimpleModule redefinitions */
@@ -108,19 +109,19 @@ class NSCHttpBrowser : public HttpBrowser
         virtual void socketFailure(int connId, void *yourPtr, int code);
 
         /** send HTTP reply message though TCPSocket depends on the TCP DataTransferMode*/
-        virtual void sendMessage(TCPSocket *socket, HttpRequestMessage *reply);
+        virtual void sendMessage(NSCSockData *sockdata, HttpRequestMessage *reply);
 
         /*
          * Format an application TCP_TRANSFER_BYTESTREAM Request message which can be sent though NSC TCP depence on the application layer protocol
          * the protocol type can be HTTP \ SPDY \ HTTPS+M \ HTTPNF
          */
-        std::string formatByteRequestMessage(HttpRequestMessage *httpRequest);
+        std::string formatByteRequestMessage(NSCSockData *sockdata, HttpRequestMessage *httpRequest);
 
         /** Format a Request message to HTTP Request Message Header */
         virtual std::string formatHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
 
         /** Deflate a HTTP Request message header using the Name-Value zlib dictionary */
-        virtual std::string formatSpdyZlibHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
+        virtual std::string formatSpdyZlibHttpRequestMessageHeader(NSCSockData *sockdata, const RealHttpRequestMessage *httpRequest);
 
         /** Format a Request message header to zlib-deflated SPDY header block */
         virtual std::string formatSpdyZlibHeaderBlockRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
@@ -161,9 +162,6 @@ class NSCHttpBrowser : public HttpBrowser
 
         //策略选择，确定派生类
         void chooseStrategy(Pipelining_Mode_Type pipeliningMode, SvrSupportDetect_Method_Type SvrSupportDetect);
-
-        spdylay_zlib deflater;
-        spdylay_zlib inflater;
 };
 
 #endif
