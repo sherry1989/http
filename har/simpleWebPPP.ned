@@ -24,6 +24,7 @@ network simpleWebPPP
     parameters:
         @display("bgb=474,374");
         int serverNum;
+        int clientNum;
     types:
         channel configLine extends ned.DatarateChannel
         {
@@ -52,7 +53,7 @@ network simpleWebPPP
             parameters:
                 @display("p=89,188;i=device/server_l");
         }
-        cli: StandardHost {
+        cli[clientNum]: StandardHost {
             parameters:
                 @display("p=316,188;i=device/laptop_l");
         }
@@ -60,7 +61,7 @@ network simpleWebPPP
         for i=0..(serverNum-1) {
             router.pppg++ <--> configLine <--> srv[i].pppg++;
         }
-        cli.pppg++ <--> configLine <--> router.pppg++;
-
+        for i=0..(clientNum-1) {
+            cli[i].pppg++ <--> configLine <--> router.pppg++;
+        }
 }
-
