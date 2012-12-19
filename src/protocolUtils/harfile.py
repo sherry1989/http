@@ -8,13 +8,15 @@
 
 import re
 
-def MakeDefaultHeaders(list_o_dicts):
+def MakeDefaultHeaders(list_o_dicts, items_to_ignore=[]):
   retval = {}
   for kvdict in list_o_dicts:
-    key = kvdict["name"]
+    key = kvdict["name"].lower()
     val = kvdict["value"]
-    if key == "Host":
+    if key == "host":
       key = ":host"
+    if key in items_to_ignore:
+      continue
     if key in retval:
       retval[key] = retval[key] + '\0' + val
     else:
@@ -46,7 +48,8 @@ def ReadHarFileForHttp(filename):
     request_headers.append(header)
 
     response = entry["response"]
-    header = MakeDefaultHeaders(response["headers"])
+    header = MakeDefaultHeaders(response["headers"],
+        ["status", "status-text", "version"])
     header[":status"] = re.sub("^([0-9]*).*","\\1", str(response["status"]))
     header[":status-text"] = response["statusText"]
     header[":version"] = re.sub("^[^/]*/","", response["httpVersion"])
