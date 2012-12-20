@@ -139,13 +139,15 @@ class NSCHttpServer : public HttpServer
         TCPSocket_Zlib_Map zlibPerSocket;
 
         // Basic statistics
-        long bytesBeforeDeflate;
-        long bytesAfterDeflate;
+        long headerBytesBeforeDeflate;
+        long headerBytesAfterDeflate;
+        long totalBytesSent;
 
         // Output Vectors
         cOutVector recvReqTimeVec;
         cOutVector sendResTimeVec;
-        cOutVector deflateRatioVec;
+        cOutVector headerDeflateRatioVec;
+        cOutVector totalDeflateRatioVec;
 };
 
 #endif

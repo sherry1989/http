@@ -145,13 +145,15 @@ class NSCHttpBrowser : public HttpBrowser
         // Basic statistics
         long responseMessageReceived;
         long responseParsed;
-        long bytesBeforeDeflate;
-        long bytesAfterDeflate;
+        long headerBytesBeforeDeflate;
+        long headerBytesAfterDeflate;
+        long totalBytesSent;
 
         // Output Vectors
         cOutVector recvResTimeVec;
         cOutVector sendReqTimeVec;
-        cOutVector deflateRatioVec;
+        cOutVector headerDeflateRatioVec;
+        cOutVector totalDeflateRatioVec;
 
         /*
          * 指向各类策略基类的指针，用于调用不同的策略

@@ -54,39 +54,47 @@ void NSCHttpServer::initialize()
     // Initialize statistics
     numBroken = 0;
     socketsOpened = 0;
+    totalBytesSent = 0;
     if (protocolType != HTTP)
     {
-        bytesBeforeDeflate = bytesAfterDeflate = 0;
+        headerBytesBeforeDeflate = headerBytesAfterDeflate = 0;
     }
 
     // Initialize watches
     WATCH(numBroken);
     WATCH(socketsOpened);
+    WATCH(totalBytesSent);
     if (protocolType != HTTP)
     {
-        WATCH(bytesBeforeDeflate);
-        WATCH(bytesAfterDeflate);
+        WATCH(headerBytesBeforeDeflate);
+        WATCH(headerBytesAfterDeflate);
     }
 
     // Initialize cOutputVectors
     recvReqTimeVec.setName("Receive Request SimTime");
     sendResTimeVec.setName("Send Response SimTime");
-    deflateRatioVec.setName("Deflate Ratio");
+    headerDeflateRatioVec.setName("Header Deflate Ratio");
+    totalDeflateRatioVec.setName("Total Deflate Ratio");
 }
 
 void NSCHttpServer::finish()
 {
     HttpServer::finish();
 
+    // Report sockets related statistics.
+    EV_SUMMARY << "Total Bytes Sent: " << totalBytesSent << endl;
     if (protocolType != HTTP)
     {
-        // Report sockets related statistics.
-        EV_SUMMARY << "Bytes Before Deflate: " << bytesBeforeDeflate << endl;
-        EV_SUMMARY << "Bytes After Deflate: " << bytesAfterDeflate << endl;
+        EV_SUMMARY << "Bytes Before Deflate: " << headerBytesBeforeDeflate << endl;
+        EV_SUMMARY << "Bytes After Deflate: " << headerBytesAfterDeflate << endl;
+    }
 
-        // Record the sockets related statistics
-        recordScalar("bytes.beforeDeflate", bytesBeforeDeflate);
-        recordScalar("bytes.AfterDeflate", bytesAfterDeflate);
+    // Record the sockets related statistics
+    recordScalar("bytes.totalBytesSent", totalBytesSent);
+    if (protocolType != HTTP)
+    {
+        recordScalar("bytes.beforeDeflate", headerBytesBeforeDeflate);
+        recordScalar("bytes.AfterDeflate", headerBytesAfterDeflate);
     }
 }
 
@@ -497,7 +505,11 @@ void NSCHttpServer::sendMessage(TCPSocket *socket, HttpReplyMessage *reply)
 
             sendMsg = dynamic_cast<cMessage*>(byMsg);
             socket->send(sendMsg);
+
+            // doing statistics
             sendResTimeVec.record(simTime());
+            totalBytesSent += sendBytes;
+
             break;
         }
 
@@ -1131,9 +1143,11 @@ std::string NSCHttpServer::formatSpdyZlibHttpResponseMessageHeader(TCPSocket *so
     else
     {
         // doing statistics
-        bytesBeforeDeflate += nvbuflen;
-        bytesAfterDeflate += framelen;
-        deflateRatioVec.recordWithTimestamp(simTime(), double(framelen)/double(nvbuflen));
+        double bodyLength = (double)strlen(httpResponse->payload());
+        headerBytesBeforeDeflate += nvbuflen;
+        headerBytesAfterDeflate += framelen;
+        headerDeflateRatioVec.recordWithTimestamp(simTime(), double(framelen)/double(nvbuflen));
+        totalDeflateRatioVec.recordWithTimestamp(simTime(), (double)(framelen+bodyLength)/(double)(nvbuflen+bodyLength));
 
         std::ostringstream zlibResHeader;
 
