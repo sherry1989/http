@@ -278,7 +278,42 @@ int HarParser::ParseHarFiles(int n_files, char** files, vector<HeaderFrame>* req
     {
         dup2(pipe_fds[1], 1);
         char** new_argv = new char*[n_files + 2];
-        new_argv[0] = (char*) "./../src/protocolUtils/harfile_translator.py";
+
+        // depend on the protocol to call the right py
+        ifstream protocolFile("protocol.txt", ios::in);
+        if (protocolFile.good())
+        {
+            string protocol = "";
+            while (!protocolFile.eof())
+            {
+                string line;
+                getline(protocolFile, line);
+
+                if (line.empty() || line[0]=='#')
+                    continue;
+
+                protocol.assign(line);
+                EV_DEBUG_NOMODULE << "read line and get the protocol type which is: " << protocol << endl;
+                break;
+            }
+            if (protocol.find("HTTP") != string::npos)
+            {
+                new_argv[0] = (char*) "./../src/protocolUtils/harfile_translator_http.py";
+            }
+            else if (protocol.find("SPDY") != string::npos)
+            {
+                new_argv[0] = (char*) "./../src/protocolUtils/harfile_translator_spdy.py";
+            }
+            else
+            {
+                throw cRuntimeError("Get the unrecognized protocol");
+            }
+        }
+        else
+        {
+            throw cRuntimeError("Can not open file, protocol.txt");
+        }
+
         for (int i = 0; i < n_files; ++i)
         {
             new_argv[i + 1] = files[i];
