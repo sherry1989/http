@@ -1,4 +1,5 @@
 D:mnot/
+#D:apps/
 #amazon.com.har
 #baidu.com.har
 #bbc.co.uk.har
@@ -20,3 +21,6 @@ sina.com.cn.har
 #youtube.com.har
 
 #www.sina.com.cn_firebug.har
+
+#feixin_offline-file-receiver.har
+#feixin_offline-file-sender.har
