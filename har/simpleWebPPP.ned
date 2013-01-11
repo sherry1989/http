@@ -26,11 +26,32 @@ network simpleWebPPP
         int serverNum;
         int clientNum;
     types:
-        channel configLine extends ned.DatarateChannel
+//        channel configLine extends ned.DatarateChannel
+//        {
+//            parameters:
+//                delay = 0.1us;
+//                datarate = 1Mbps;
+//                per = 0;
+//        }
+        channel userUpLine extends ned.DatarateChannel
+        {
+            parameters:
+                delay = 40ms;
+                datarate = 0.5Mbps;
+                per = 0;
+        }
+        channel userDownLine extends ned.DatarateChannel
+        {
+            parameters:
+                delay = 40ms;
+                datarate = 1.45Mbps;
+                per = 0;
+        }
+        channel serverLine extends ned.DatarateChannel
         {
             parameters:
                 delay = 0.1us;
-                datarate = 1Mbps;
+                datarate = 100Mbps;
                 per = 0;
         }
     submodules:
@@ -59,9 +80,10 @@ network simpleWebPPP
         }
     connections:
         for i=0..(serverNum-1) {
-            router.pppg++ <--> configLine <--> srv[i].pppg++;
+            router.pppg++ <--> serverLine <--> srv[i].pppg++;
         }
         for i=0..(clientNum-1) {
-            cli[i].pppg++ <--> configLine <--> router.pppg++;
+            cli[i].pppg$o++ --> userUpLine --> router.pppg$i++;
+            cli[i].pppg$i++ <-- userDownLine <-- router.pppg$o++;
         }
 }
