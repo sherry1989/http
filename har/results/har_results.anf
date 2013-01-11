@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scave:Analysis xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:scave="http://www.omnetpp.org/omnetpp/scave">
+  <inputs>
+    <inputs name="*.vec"/>
+    <inputs name="*.sca"/>
+  </inputs>
+  <datasets>
+    <datasets name="cli_response_stat">
+      <items xsi:type="scave:Add" filterPattern="name(response.*)"/>
+      <items xsi:type="scave:BarChart" name="cliResStat">
+        <properties name="Plot.BackgroundColor" value="lavender"/>
+        <properties name="Graph.Title" value="Client Response Statistics"/>
+        <properties name="X.Axis.Title" value="pipelining mode"/>
+        <properties name="Y.Axis.Title" value="msg number"/>
+        <properties name="Legend.Display" value="true"/>
+        <properties name="Legend.Position" value="Below"/>
+      </items>
+    </datasets>
+    <datasets name="totalDeflate">
+      <items xsi:type="scave:Add" filterPattern="name(bytes.*)"/>
+      <items xsi:type="scave:Group" name="client">
+        <items xsi:type="scave:BarChart" name="CliTotalDeflateInfo">
+          <filters xsi:type="scave:Select" filterPattern="module(*.cli*.tcpApp[0])"/>
+          <properties name="Graph.Title" value="Client Total Deflate Info"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+      </items>
+      <items xsi:type="scave:Group" name="server">
+        <items xsi:type="scave:BarChart" name="SrvTotalDeflateInfo">
+          <filters xsi:type="scave:Select" filterPattern="module(*.srv*.tcpApp[0])"/>
+          <properties name="Graph.Title" value="Server Total Deflate Info"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+      </items>
+    </datasets>
+    <datasets name="header_deflate_ratio_vec">
+      <items xsi:type="scave:Add" filterPattern="name(&quot;Header Deflate Ratio&quot;)" type="VECTOR"/>
+      <items xsi:type="scave:Group" name="client">
+        <items xsi:type="scave:LineChart" name="CliDeflateRatio" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.cli*.tcpApp[0])"/>
+          <properties name="Graph.Title" value="Client Deflate Ratio"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+      </items>
+      <items xsi:type="scave:Group" name="server">
+        <items xsi:type="scave:LineChart" name="SrvDeflateRatio" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.srv*.tcpApp[0])"/>
+          <properties name="Graph.Title" value="Server Deflate Ratio"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+      </items>
+    </datasets>
+    <datasets name="total_deflate_ratio_vec">
+      <items xsi:type="scave:Add" filterPattern="name(&quot;Total Deflate Ratio&quot;)" type="VECTOR"/>
+      <items xsi:type="scave:Group" name="client">
+        <items xsi:type="scave:LineChart" name="CliDeflateRatio" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.cli*.tcpApp[0])"/>
+          <properties name="Graph.Title" value="Client Deflate Ratio"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+      </items>
+      <items xsi:type="scave:Group" name="server">
+        <items xsi:type="scave:LineChart" name="SrvDeflateRatio" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.srv*.tcpApp[0])"/>
+          <properties name="Graph.Title" value="Server Deflate Ratio"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+      </items>
+    </datasets>
+    <datasets name="Throuput">
+      <items xsi:type="scave:Add" filterPattern="name(&quot;thruput (bit/sec)&quot;)" type="VECTOR"/>
+      <items xsi:type="scave:Group" name="client">
+        <items xsi:type="scave:LineChart" name="cliThrouput" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.cli*)" type="VECTOR"/>
+          <properties name="Graph.Title" value="Throuput"/>
+          <properties name="X.Axis.Title" value="simTime(sec)"/>
+          <properties name="Y.Axis.Title" value="Throuput(bit/sec)"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Right"/>
+        </items>
+      </items>
+      <items xsi:type="scave:Group" name="server">
+        <items xsi:type="scave:LineChart" name="srvThrouput" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.srv*)" type="VECTOR"/>
+          <properties name="Graph.Title" value="Throuput"/>
+          <properties name="X.Axis.Title" value="simTime(sec)"/>
+          <properties name="Y.Axis.Title" value="Throuput(bit/sec)"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+      </items>
+    </datasets>
+  </datasets>
+  <chartSheets>
+    <chartSheets name="default" charts="//@datasets/@datasets.0/@items.1 //@datasets/@datasets.1/@items.1/@items.0 //@datasets/@datasets.2/@items.1/@items.0 //@datasets/@datasets.1/@items.2/@items.0 //@datasets/@datasets.2/@items.2/@items.0 //@datasets/@datasets.3/@items.1/@items.0 //@datasets/@datasets.3/@items.2/@items.0 //@datasets/@datasets.4/@items.1/@items.0 //@datasets/@datasets.4/@items.2/@items.0"/>
+  </chartSheets>
+</scave:Analysis>
