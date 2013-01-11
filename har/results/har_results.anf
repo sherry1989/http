@@ -16,20 +16,24 @@
         <properties name="Legend.Position" value="Below"/>
       </items>
     </datasets>
-    <datasets name="totalDeflate">
+    <datasets name="total_byte_info">
       <items xsi:type="scave:Add" filterPattern="name(bytes.*)"/>
       <items xsi:type="scave:Group" name="client">
-        <items xsi:type="scave:BarChart" name="CliTotalDeflateInfo">
+        <items xsi:type="scave:BarChart" name="CliByteInfo">
           <filters xsi:type="scave:Select" filterPattern="module(*.cli*.tcpApp[0])"/>
-          <properties name="Graph.Title" value="Client Total Deflate Info"/>
+          <properties name="Graph.Title" value="Client Byte Info"/>
+          <properties name="X.Axis.Title" value="pipelining mode"/>
+          <properties name="Y.Axis.Title" value="bytes(Byte)"/>
           <properties name="Legend.Display" value="true"/>
           <properties name="Legend.Position" value="Below"/>
         </items>
       </items>
       <items xsi:type="scave:Group" name="server">
-        <items xsi:type="scave:BarChart" name="SrvTotalDeflateInfo">
+        <items xsi:type="scave:BarChart" name="SrvByteInfo">
           <filters xsi:type="scave:Select" filterPattern="module(*.srv*.tcpApp[0])"/>
-          <properties name="Graph.Title" value="Server Total Deflate Info"/>
+          <properties name="Graph.Title" value="Server Byte Info"/>
+          <properties name="X.Axis.Title" value="pipelining mode"/>
+          <properties name="Y.Axis.Title" value="bytes(Byte)"/>
           <properties name="Legend.Display" value="true"/>
           <properties name="Legend.Position" value="Below"/>
         </items>
@@ -38,17 +42,21 @@
     <datasets name="header_deflate_ratio_vec">
       <items xsi:type="scave:Add" filterPattern="name(&quot;Header Deflate Ratio&quot;)" type="VECTOR"/>
       <items xsi:type="scave:Group" name="client">
-        <items xsi:type="scave:LineChart" name="CliDeflateRatio" lineNameFormat="">
-          <filters xsi:type="scave:Select" filterPattern="module(*.cli*.tcpApp[0])"/>
-          <properties name="Graph.Title" value="Client Deflate Ratio"/>
+        <items xsi:type="scave:LineChart" name="CliHeaderDeflateRatio" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.cli*.tcpApp[0])" type="VECTOR"/>
+          <properties name="Graph.Title" value="Client Header Deflate Ratio"/>
+          <properties name="X.Axis.Title" value="simtime(s)"/>
+          <properties name="Y.Axis.Title" value="deflate ratio"/>
           <properties name="Legend.Display" value="true"/>
           <properties name="Legend.Position" value="Below"/>
         </items>
       </items>
       <items xsi:type="scave:Group" name="server">
-        <items xsi:type="scave:LineChart" name="SrvDeflateRatio" lineNameFormat="">
-          <filters xsi:type="scave:Select" filterPattern="module(*.srv*.tcpApp[0])"/>
-          <properties name="Graph.Title" value="Server Deflate Ratio"/>
+        <items xsi:type="scave:LineChart" name="SrvHeaderDeflateRatio" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.srv*.tcpApp[0])" type="VECTOR"/>
+          <properties name="Graph.Title" value="Server Header Deflate Ratio"/>
+          <properties name="X.Axis.Title" value="simtime(s)"/>
+          <properties name="Y.Axis.Title" value="deflate ratio"/>
           <properties name="Legend.Display" value="true"/>
           <properties name="Legend.Position" value="Below"/>
         </items>
@@ -57,17 +65,21 @@
     <datasets name="total_deflate_ratio_vec">
       <items xsi:type="scave:Add" filterPattern="name(&quot;Total Deflate Ratio&quot;)" type="VECTOR"/>
       <items xsi:type="scave:Group" name="client">
-        <items xsi:type="scave:LineChart" name="CliDeflateRatio" lineNameFormat="">
-          <filters xsi:type="scave:Select" filterPattern="module(*.cli*.tcpApp[0])"/>
-          <properties name="Graph.Title" value="Client Deflate Ratio"/>
+        <items xsi:type="scave:LineChart" name="CliTotalDeflateRatio" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.cli*.tcpApp[0])" type="VECTOR"/>
+          <properties name="Graph.Title" value="Client Total Deflate Ratio"/>
+          <properties name="X.Axis.Title" value="simtime(s)"/>
+          <properties name="Y.Axis.Title" value="deflate ratio"/>
           <properties name="Legend.Display" value="true"/>
           <properties name="Legend.Position" value="Below"/>
         </items>
       </items>
       <items xsi:type="scave:Group" name="server">
-        <items xsi:type="scave:LineChart" name="SrvDeflateRatio" lineNameFormat="">
-          <filters xsi:type="scave:Select" filterPattern="module(*.srv*.tcpApp[0])"/>
-          <properties name="Graph.Title" value="Server Deflate Ratio"/>
+        <items xsi:type="scave:LineChart" name="SrvTotalDeflateRatio" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.srv*.tcpApp[0])" type="VECTOR"/>
+          <properties name="Graph.Title" value="Server Total Deflate Ratio"/>
+          <properties name="X.Axis.Title" value="simtime(s)"/>
+          <properties name="Y.Axis.Title" value="deflate ratio"/>
           <properties name="Legend.Display" value="true"/>
           <properties name="Legend.Position" value="Below"/>
         </items>
@@ -98,6 +110,6 @@
     </datasets>
   </datasets>
   <chartSheets>
-    <chartSheets name="default" charts="//@datasets/@datasets.0/@items.1 //@datasets/@datasets.1/@items.1/@items.0 //@datasets/@datasets.2/@items.1/@items.0 //@datasets/@datasets.1/@items.2/@items.0 //@datasets/@datasets.2/@items.2/@items.0 //@datasets/@datasets.3/@items.1/@items.0 //@datasets/@datasets.3/@items.2/@items.0 //@datasets/@datasets.4/@items.1/@items.0 //@datasets/@datasets.4/@items.2/@items.0"/>
+    <chartSheets name="default" charts="//@datasets/@datasets.0/@items.1 //@datasets/@datasets.1/@items.1/@items.0 //@datasets/@datasets.2/@items.1/@items.0 //@datasets/@datasets.4/@items.1/@items.0 //@datasets/@datasets.4/@items.2/@items.0 //@datasets/@datasets.2/@items.2/@items.0 //@datasets/@datasets.3/@items.1/@items.0 //@datasets/@datasets.3/@items.2/@items.0 //@datasets/@datasets.1/@items.2/@items.0"/>
   </chartSheets>
 </scave:Analysis>
