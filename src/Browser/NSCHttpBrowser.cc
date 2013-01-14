@@ -229,6 +229,7 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
     if (prasedMsg != NULL)
     {
         responseParsed++;
+        EV_DEBUG << "response to parse is No. " << responseParsed << endl;
 
         HttpContentType contentType = CT_UNKNOWN;
         contentType = pSvrSupportDetect->setSvrSupportForSock(sockdata, prasedMsg);
