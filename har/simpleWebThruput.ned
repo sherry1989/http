@@ -20,6 +20,7 @@ import http.src.Server.HarServer;
 import inet.applications.httptools.HttpServer;
 import inet.util.ThruputMeteringChannel;
 import inet.util.ThruputMeter;
+import ned.IdealChannel;
 
 network simpleWebThruput
 {
@@ -31,7 +32,7 @@ network simpleWebThruput
         channel userUpLine extends ThruputMeteringChannel
         {
             parameters:
-                delay = 40ms;
+                delay = 80ms;
                 datarate = 0.5Mbps;
                 per = 0;
                 thruputDisplayFormat = "b (u)";
@@ -39,7 +40,7 @@ network simpleWebThruput
         channel userDownLine extends ThruputMeteringChannel
         {
             parameters:
-                delay = 40ms;
+                delay = 80ms;
                 datarate = 1.45Mbps;
                 per = 0;
                 thruputDisplayFormat = "b (u)";
@@ -49,6 +50,14 @@ network simpleWebThruput
             parameters:
                 delay = 0.1us;
                 datarate = 100Mbps;
+                per = 0;
+                thruputDisplayFormat = "b (u)";
+        }
+        channel idealLine extends ThruputMeteringChannel
+        {
+            parameters:
+                delay = 0s;
+                datarate = 100Gbps;
                 per = 0;
                 thruputDisplayFormat = "b (u)";
         }
@@ -95,14 +104,14 @@ network simpleWebThruput
     connections:
         for i=0..(serverNum-1) {
             srv[i].pppg$o++ --> serverLine --> srvUpTh[i].in;
-            srvUpTh[i].out --> serverLine --> router.pppg$i++;
-            srv[i].pppg$i++ <-- serverLine <-- srvDownTh[i].out;
+            srvUpTh[i].out --> idealLine --> router.pppg$i++;
+            srv[i].pppg$i++ <-- idealLine <-- srvDownTh[i].out;
             srvDownTh[i].in <-- serverLine <-- router.pppg$o++;
         }
         for i=0..(clientNum-1) {
             cli[i].pppg$o++ --> userUpLine --> cliUpTh[i].in;
-            cliUpTh[i].out --> userUpLine --> router.pppg$i++;
-            cli[i].pppg$i++ <-- userDownLine <-- cliDownTh[i].out;
+            cliUpTh[i].out --> idealLine --> router.pppg$i++;
+            cli[i].pppg$i++ <-- idealLine <-- cliDownTh[i].out;
             cliDownTh[i].in <-- userDownLine <-- router.pppg$o++;
         }
 }
