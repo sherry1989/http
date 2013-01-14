@@ -42,6 +42,7 @@
     <datasets name="header_deflate_ratio_vec">
       <items xsi:type="scave:Add" filterPattern="name(&quot;Header Deflate Ratio&quot;)" type="VECTOR"/>
       <items xsi:type="scave:Group" name="client">
+        <items xsi:type="scave:Compute" operation="mean"/>
         <items xsi:type="scave:LineChart" name="CliHeaderDeflateRatio" lineNameFormat="">
           <filters xsi:type="scave:Select" filterPattern="module(*.cli*.tcpApp[0])" type="VECTOR"/>
           <properties name="Graph.Title" value="Client Header Deflate Ratio"/>
@@ -52,6 +53,7 @@
         </items>
       </items>
       <items xsi:type="scave:Group" name="server">
+        <items xsi:type="scave:Compute" operation="mean"/>
         <items xsi:type="scave:LineChart" name="SrvHeaderDeflateRatio" lineNameFormat="">
           <filters xsi:type="scave:Select" filterPattern="module(*.srv*.tcpApp[0])" type="VECTOR"/>
           <properties name="Graph.Title" value="Server Header Deflate Ratio"/>
@@ -65,6 +67,7 @@
     <datasets name="total_deflate_ratio_vec">
       <items xsi:type="scave:Add" filterPattern="name(&quot;Total Deflate Ratio&quot;)" type="VECTOR"/>
       <items xsi:type="scave:Group" name="client">
+        <items xsi:type="scave:Compute" operation="mean"/>
         <items xsi:type="scave:LineChart" name="CliTotalDeflateRatio" lineNameFormat="">
           <filters xsi:type="scave:Select" filterPattern="module(*.cli*.tcpApp[0])" type="VECTOR"/>
           <properties name="Graph.Title" value="Client Total Deflate Ratio"/>
@@ -75,6 +78,7 @@
         </items>
       </items>
       <items xsi:type="scave:Group" name="server">
+        <items xsi:type="scave:Compute" operation="mean"/>
         <items xsi:type="scave:LineChart" name="SrvTotalDeflateRatio" lineNameFormat="">
           <filters xsi:type="scave:Select" filterPattern="module(*.srv*.tcpApp[0])" type="VECTOR"/>
           <properties name="Graph.Title" value="Server Total Deflate Ratio"/>
@@ -89,7 +93,7 @@
       <items xsi:type="scave:Add" filterPattern="name(&quot;thruput (bit/sec)&quot;)" type="VECTOR"/>
       <items xsi:type="scave:Group" name="client">
         <items xsi:type="scave:LineChart" name="cliThrouput" lineNameFormat="">
-          <filters xsi:type="scave:Select" filterPattern="module(*.cli*)" type="VECTOR"/>
+          <filters xsi:type="scave:Select" filterPattern="module(*.cliUp*)" type="VECTOR"/>
           <properties name="Graph.Title" value="Throuput"/>
           <properties name="X.Axis.Title" value="simTime(sec)"/>
           <properties name="Y.Axis.Title" value="Throuput(bit/sec)"/>
@@ -110,6 +114,6 @@
     </datasets>
   </datasets>
   <chartSheets>
-    <chartSheets name="default" charts="//@datasets/@datasets.0/@items.1 //@datasets/@datasets.1/@items.1/@items.0 //@datasets/@datasets.2/@items.1/@items.0 //@datasets/@datasets.4/@items.1/@items.0 //@datasets/@datasets.4/@items.2/@items.0 //@datasets/@datasets.2/@items.2/@items.0 //@datasets/@datasets.3/@items.1/@items.0 //@datasets/@datasets.3/@items.2/@items.0 //@datasets/@datasets.1/@items.2/@items.0"/>
+    <chartSheets name="default" charts="//@datasets/@datasets.0/@items.1 //@datasets/@datasets.1/@items.1/@items.0 //@datasets/@datasets.2/@items.1/@items.1 //@datasets/@datasets.4/@items.1/@items.0 //@datasets/@datasets.4/@items.2/@items.0 //@datasets/@datasets.2/@items.2/@items.1 //@datasets/@datasets.3/@items.1/@items.1 //@datasets/@datasets.3/@items.2/@items.1 //@datasets/@datasets.1/@items.2/@items.0"/>
   </chartSheets>
 </scave:Analysis>
