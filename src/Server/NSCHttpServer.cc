@@ -1143,7 +1143,7 @@ std::string NSCHttpServer::formatSpdyZlibHttpResponseMessageHeader(TCPSocket *so
     else
     {
         // doing statistics
-        double bodyLength = (double)strlen(httpResponse->payload());
+        double bodyLength = (double)(httpResponse->contentLength());
         headerBytesBeforeDeflate += nvbuflen;
         headerBytesAfterDeflate += framelen;
         headerDeflateRatioVec.recordWithTimestamp(simTime(), double(framelen)/double(nvbuflen));
