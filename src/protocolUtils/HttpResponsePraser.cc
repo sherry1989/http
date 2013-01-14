@@ -341,7 +341,7 @@ void HttpResponsePraser::spdyParser(const char *data,size_t len, spdylay_zlib *i
 
         if (framelen == SPDYLAY_ERR_ZLIB)
         {
-            throw cRuntimeError("spdylay_zlib_deflate_hd get Zlib error!");
+            throw cRuntimeError("spdylay_zlib_inflate_hd get Zlib error!");
         }
     }
     else
