@@ -552,7 +552,7 @@ std::string NSCHttpServer::formatByteResponseMessage(TCPSocket *socket, HttpRepl
     EV_DEBUG << "Payload Length is" <<(int64_t)strlen(realhttpResponse->payload()) << ". " << endl;
     if (realhttpResponse->contentLength() > (int64_t)strlen(realhttpResponse->payload()))
     {
-        resHeader.append((realhttpResponse->contentLength() - (int64_t)strlen(realhttpResponse->payload())), '\0');
+        resHeader.append((realhttpResponse->contentLength() - (int64_t)strlen(realhttpResponse->payload())), '\n');
         EV_DEBUG << "Add NULL char. contentLength is" << realhttpResponse->contentLength() << ", payload Length is" <<(int64_t)strlen(realhttpResponse->payload()) << ". " << endl;
     }
 
