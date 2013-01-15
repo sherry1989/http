@@ -100,6 +100,9 @@ class HttpResponsePraser
 //        evbuffer *response_body_buf_;
         int32_t recv_window_size_;
         int64 recv_body_length;
+
+        static bool nextHeaderSticked;
+        static std::string nextHeader;
 };
 
 namespace ResponsePraser

@@ -15,6 +15,8 @@
 
 namespace ResponsePraser
 {
+
+
     static http_parser_settings parserCallback=
     {
         message_begin_cb,           //http_cb      on_message_begin;
@@ -192,6 +194,9 @@ namespace ResponsePraser
     }
 }
 
+bool HttpResponsePraser::nextHeaderSticked = false;
+std::string HttpResponsePraser::nextHeader;
+
 HttpResponsePraser::HttpResponsePraser()
 :httpResponse(new RealHttpReplyMessage()),
  response_state_(INITIAL),
@@ -206,6 +211,7 @@ HttpResponsePraser::HttpResponsePraser()
     // TODO Auto-generated constructor stub
     http_parser_init(pResponseParser, HTTP_RESPONSE);
     pResponseParser->data = this;
+
 }
 
 HttpResponsePraser::~HttpResponsePraser()
@@ -242,6 +248,22 @@ RealHttpReplyMessage* HttpResponsePraser::praseHttpResponse(cPacket *msg, Protoc
         EV_DEBUG_NOMODULE << "Start parse a new http response. message name is " << msg->getName() << endl;
         httpResponse->setName(msg->getName());
         httpResponse->setSentFrom(msg->getSenderModule(), msg->getSenderGateId(), msg->getSendingTime());
+
+        EV_DEBUG_NOMODULE << "nextHeaderSticked before if is " << nextHeaderSticked << endl;
+        if (nextHeaderSticked)
+        {
+            char *newBuf = new char[nextHeader.length() + bufLength];
+            memcpy(newBuf, nextHeader.c_str(), nextHeader.length());
+            memcpy(newBuf+nextHeader.length(), buf, bufLength);
+            delete[] buf;
+            buf = newBuf;
+            bufLength += nextHeader.length();
+            nextHeaderSticked = false;
+            EV_DEBUG_NOMODULE << "nextHeaderSticked is set to " << nextHeaderSticked << endl;
+
+            EV_DEBUG_NOMODULE << "HTTP Response after deal to parse ByteLength is:" << bufLength << endl;
+            EV_DEBUG_NOMODULE << "HTTP Response after deal to parse ByteArray is:" << buf << endl;
+        }
 
         switch(protocolType)
         {
@@ -284,18 +306,44 @@ RealHttpReplyMessage* HttpResponsePraser::praseHttpResponse(cPacket *msg, Protoc
 
         recv_body_length += bufLength;
 
-//        EV_DEBUG_NOMODULE << "payload add is: " << buf << endl;
+        EV_DEBUG_NOMODULE << "payload add is: " << buf << endl;
     }
 
-//    EV_DEBUG_NOMODULE << "payload now is:" << httpResponse->payload() << endl;
+    EV_DEBUG_NOMODULE << "payload now is:" << httpResponse->payload() << endl;
     EV_DEBUG_NOMODULE << "payload length now is :" << recv_body_length << endl;
     EV_DEBUG_NOMODULE << "httpResponse bytelength is: " << httpResponse->getByteLength() << endl;
 
     delete[] buf;
     delete msg;
 
-    if (httpResponse->getByteLength() <= recv_body_length)
+    /*
+     * if received application bytelength till now for this message equals response's bytelength,
+     * means there's no Application layer stick package, just return the whole http msg back to browser
+     */
+    if (httpResponse->getByteLength() == recv_body_length)
     {
+        nextHeaderSticked = false;
+        EV_DEBUG_NOMODULE << "nextHeaderSticked is set to " << nextHeaderSticked << endl;
+        recv_body_length = 0;
+        return httpResponse;
+    }
+    /*
+     * else if received application bytelength till now for this message is larger than response's bytelength,
+     * means there's no Application layer stick package, just return the whole http msg back to browser
+     */
+    else if (httpResponse->getByteLength() < recv_body_length)
+    {
+        nextHeaderSticked = true;
+        EV_DEBUG_NOMODULE << "nextHeaderSticked is set to " << nextHeaderSticked << endl;
+        unsigned int nextHeaderLength = recv_body_length - httpResponse->getByteLength();
+        EV_DEBUG_NOMODULE << "nextHeaderLength is: " << nextHeaderLength << endl;
+        std::string totalData;
+        totalData.assign(httpResponse->payload());
+        EV_DEBUG_NOMODULE << "totalData length is: " << totalData.length() << endl;
+        std::string payload;
+        payload.assign(totalData.substr(0, httpResponse->getByteLength()));
+        nextHeader.assign(totalData.substr(httpResponse->getByteLength(), nextHeaderLength));
+        httpResponse->setPayload(payload.c_str());
         recv_body_length = 0;
         return httpResponse;
     }
