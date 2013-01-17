@@ -3,9 +3,12 @@
 # ./run >run.txt
 
 ./../http -u Cmdenv -f ./script.ini -c single_connection_noPipe
-./../http -u Cmdenv -f ./script.ini -c multi_connection_noPipe
-./../http -u Cmdenv -f ./script.ini -c single_connection
-./../http -u Cmdenv -f ./script.ini -c normal_pipe_11
-./../http -u Cmdenv -f ./script.ini -c normal_pipe_12
-./../http -u Cmdenv -f ./script.ini -c normal_pipe_21
-./../http -u Cmdenv -f ./script.ini -c normal_pipe_22
+./../http -u Cmdenv -f ./script.ini -c multi_3_connection_noPipe
+./../http -u Cmdenv -f ./script.ini -c multi_6_connection_noPipe
+./../http -u Cmdenv -f ./script.ini -c multi_12_connection_noPipe
+./../http -u Cmdenv -f ./script.ini -c multi_24_connection_noPipe
+#./../http -u Cmdenv -f ./script.ini -c single_connection
+#./../http -u Cmdenv -f ./script.ini -c normal_pipe_11
+#./../http -u Cmdenv -f ./script.ini -c normal_pipe_12
+#./../http -u Cmdenv -f ./script.ini -c normal_pipe_21
+#./../http -u Cmdenv -f ./script.ini -c normal_pipe_22
