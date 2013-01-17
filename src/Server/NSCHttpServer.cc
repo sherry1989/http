@@ -14,7 +14,7 @@
 // 
 
 #include "NSCHttpServer.h"
-#include "HttpRequestPraser.h"
+#include "HttpRequestParser.h"
 #include "ByteArrayMessage.h"
 
 #include <algorithm>
@@ -196,17 +196,17 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
     }
     TCPSocket *socket = (TCPSocket*)yourPtr;
 
-    HttpRequestPraser *praser = new HttpRequestPraser();
+    HttpRequestParser *praser = new HttpRequestParser();
 
     spdylay_zlib inflater = zlibPerSocket[socket].inflater;
 
-    cPacket *prasedMsg = praser->praseHttpRequest(msg, protocolType, &inflater);
+    cPacket *parsedMsg = praser->praseHttpRequest(msg, protocolType, &inflater);
 
     // Should be a HttpRequestMessage
-    EV_DEBUG << "Socket data arrived on connection " << connId << ". Message=" << prasedMsg->getName() << ", kind=" << prasedMsg->getKind() << endl;
+    EV_DEBUG << "Socket data arrived on connection " << connId << ". Message=" << parsedMsg->getName() << ", kind=" << parsedMsg->getKind() << endl;
 
     // call the message handler to process the message.
-    HttpReplyMessage *reply = handleReceivedMessage(prasedMsg);
+    HttpReplyMessage *reply = handleReceivedMessage(parsedMsg);
     recvReqTimeVec.record(simTime());
 
     if (reply!=NULL)
@@ -273,7 +273,7 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
             scheduleAt(simTime()+replyDelay, reply);
         }
     }
-    delete prasedMsg; // Delete the received message here. Must not be deleted in the handler!
+    delete parsedMsg; // Delete the received message here. Must not be deleted in the handler!
     delete praser;
 }
 

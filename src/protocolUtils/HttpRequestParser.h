@@ -1,12 +1,12 @@
 /*
- * HttpRequestPraser.h
+ * HttpRequestParser.h
  *
  *  Created on: Oct 18, 2012
  *      Author: qian
  */
 
-#ifndef HTTPREQUESTRASER_H_
-#define HTTPREQUESTRASER_H_
+#ifndef HTTPREQUESTARSER_H_
+#define HTTPREQUESTARSER_H_
 
 extern "C" {
   #include "http_parser.h"
@@ -27,11 +27,11 @@ extern "C" {
 
 typedef std::vector<std::pair<std::string, std::string> > Headers;
 
-class HttpRequestPraser
+class HttpRequestParser
 {
     public:
-        HttpRequestPraser();
-        virtual ~HttpRequestPraser();
+        HttpRequestParser();
+        virtual ~HttpRequestParser();
 
         RealHttpRequestMessage* praseHttpRequest(cPacket *msg, Protocol_Type protocolType, spdylay_zlib *inflater);
 
@@ -97,7 +97,7 @@ class HttpRequestPraser
         int32_t recv_window_size_;
 };
 
-namespace RequestPraser
+namespace RequestParser
 {
     #define MAX_URL_LENGTH 2048
 
@@ -119,4 +119,4 @@ namespace RequestPraser
     int message_complete_cb(http_parser *htp);
 }
 
-#endif /* HTTPREQUESTRASER_H_ */
+#endif /* HTTPREQUESTARSER_H_ */

@@ -20,14 +20,14 @@
 #include "CPipeReqBase.h"
 #include "CSvrSupportDetectBase.h"
 #include "ProtocolTypeDef.h"
-#include "HttpResponsePraser.h"
+#include "HttpResponseParser.h"
 
 #include <omnetpp.h>
 
 //redefine PipeSockData as NSCSockData
 struct NSCSockData :public PipeSockData
 {
-    HttpResponsePraser *praser;
+    HttpResponseParser *praser;
     ZlibInfo zlib;
 };
 

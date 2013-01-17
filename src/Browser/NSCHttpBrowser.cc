@@ -211,30 +211,30 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
 
     if (sockdata->praser == NULL)
     {
-        sockdata->praser = new HttpResponsePraser();
-        EV_DEBUG << "New a HttpResponsePraser" << endl;
+        sockdata->praser = new HttpResponseParser();
+        EV_DEBUG << "New a HttpResponseParser" << endl;
     }
     else
     {
-        EV_DEBUG << "Use an old HttpResponsePraser" << endl;
+        EV_DEBUG << "Use an old HttpResponseParser" << endl;
     }
 
-    cPacket *prasedMsg = sockdata->praser->praseHttpResponse(msg, protocolType, &(sockdata->zlib.inflater));
+    cPacket *parsedMsg = sockdata->praser->praseHttpResponse(msg, protocolType, &(sockdata->zlib.inflater));
 
     /*
      * check if this response message is complete
      *      if it's a complete message, handle it
      *      else, wait for the coming messages contain the else message body, do nothing
      */
-    if (prasedMsg != NULL)
+    if (parsedMsg != NULL)
     {
         responseParsed++;
         EV_DEBUG << "response to parse is No. " << responseParsed << endl;
 
         HttpContentType contentType = CT_UNKNOWN;
-        contentType = pSvrSupportDetect->setSvrSupportForSock(sockdata, prasedMsg);
+        contentType = pSvrSupportDetect->setSvrSupportForSock(sockdata, parsedMsg);
 
-        handleDataMessage(prasedMsg);
+        handleDataMessage(parsedMsg);
         recvResTimeVec.record(simTime());
 
         delete sockdata->praser;
@@ -603,9 +603,9 @@ void NSCHttpBrowser::sendMessage(NSCSockData *sockdata, HttpRequestMessage *req)
 //            //#################   added for debug, should be deleted
 //            HttpRequestPraser *praser = new HttpRequestPraser();
 //
-//            cPacket *prasedMsg = praser->praseHttpRequest(dynamic_cast<cPacket*>(sendMsg), protocolType);
+//            cPacket *parsedMsg = praser->praseHttpRequest(dynamic_cast<cPacket*>(sendMsg), protocolType);
 //
-//            EV_DEBUG << "try to prase the sendmsg " << prasedMsg->getName() << ", kind=" << prasedMsg->getKind() << endl;
+//            EV_DEBUG << "try to prase the sendmsg " << parsedMsg->getName() << ", kind=" << parsedMsg->getKind() << endl;
 //            //#################   added end
 
 

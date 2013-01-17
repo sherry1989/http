@@ -1,12 +1,12 @@
 /*
- * HttpResponsePraser.h
+ * HttpResponseParser.h
  *
  *  Created on: Oct 17, 2012
  *      Author: qian
  */
 
-#ifndef HTTPRESPONSEPRASER_H_
-#define HTTPRESPONSEPRASER_H_
+#ifndef HTTPRESPONSEPARSER_H_
+#define HTTPRESPONSEPARSER_H_
 
 extern "C" {
   #include "http_parser.h"
@@ -27,11 +27,11 @@ extern "C" {
 
 typedef std::vector<std::pair<std::string, std::string> > Headers;
 
-class HttpResponsePraser
+class HttpResponseParser
 {
     public:
-        HttpResponsePraser();
-        virtual ~HttpResponsePraser();
+        HttpResponseParser();
+        virtual ~HttpResponseParser();
 
         RealHttpReplyMessage* praseHttpResponse(cPacket *msg, Protocol_Type protocolType, spdylay_zlib *inflater);
 
@@ -105,7 +105,7 @@ class HttpResponsePraser
         static std::string nextHeader;
 };
 
-namespace ResponsePraser
+namespace ResponseParser
 {
     /*
      * Callbacks for http message prasing
@@ -124,4 +124,4 @@ namespace ResponsePraser
 }
 
 
-#endif /* HTTPRESPONSEPRASER_H_ */
+#endif /* HTTPRESPONSEPARSER_H_ */

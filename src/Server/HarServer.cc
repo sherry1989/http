@@ -14,7 +14,7 @@
 // 
 
 #include "HarServer.h"
-#include "HttpRequestPraser.h"
+#include "HttpRequestParser.h"
 #include "ByteArrayMessage.h"
 #include <algorithm>
 
@@ -143,7 +143,7 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
     }
     TCPSocket *socket = (TCPSocket*)yourPtr;
 
-    HttpRequestPraser *praser = new HttpRequestPraser();
+    HttpRequestParser *praser = new HttpRequestParser();
 
     spdylay_zlib inflater = zlibPerSocket[socket].inflater;
 
