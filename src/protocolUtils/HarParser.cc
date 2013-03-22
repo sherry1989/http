@@ -116,7 +116,7 @@ HarParser::HarParser()
                  */
                 if (key.find(";") != string::npos)
                 {
-                    // Parse the key string on ;, and just use the substring before first';' to be the key
+                    // Parse the key string on ';', and just use the substring before first';' to be the key
                     cStringTokenizer tokenizer = cStringTokenizer(key.c_str(), ";");
                     std::vector<std::string> res = tokenizer.asVector();
                     key = res[0];
@@ -130,7 +130,7 @@ HarParser::HarParser()
                  */
                 if (key.find("[") != string::npos)
                 {
-                    // Parse the key string on ;, and just use the substring before first';' to be the key
+                    // Parse the key string on '[', and just use the substring before first'[' to be the key
                     cStringTokenizer tokenizer = cStringTokenizer(key.c_str(), "[");
                     std::vector<std::string> res = tokenizer.asVector();
                     key = res[0];
