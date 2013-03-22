@@ -10,6 +10,7 @@ import inet.networklayer.autorouting.ipv4.IPv4NetworkConfigurator;
 import inet.nodes.inet.Router;
 import inet.nodes.inet.StandardHost;
 import inet.world.httptools.HttpController;
+import http.src.protocolUtils.HarParser;
 import http.src.Browser.PipeHttpBrowser;
 import http.src.Browser.NSCHttpBrowser;
 import http.src.Browser.HarBrowser;
@@ -73,6 +74,11 @@ network simpleWebThruput
             parameters:
                 @display("p=417,46;i=block/cogwheel");
         }
+        harParser: HarParser {
+            parameters:
+                @display("p=41,46;i=block/cogwheel");
+        }
+        
         router: Router {
             parameters:
                 @display("p=508,226;i=abstract/router_l");

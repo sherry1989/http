@@ -3,206 +3,228 @@
  *
  *  Created on: Nov 19, 2012
  *      Author: qian
+ *
+ *  Change from Singleton Class to simple module on Mar 22, 2013
  */
 
 #include "HarParser.h"
-#include "HttpUtils.h"
-#include "HttpLogdefs.h"
-#include <omnetpp.h>
 #include <cassert>
 
-HarParser::HarParserPtr HarParser::_instance;
+Define_Module(HarParser);
 
 HarParser::HarParser()
 {
     // TODO Auto-generated constructor stub
-    vector<HeaderFrame> requests;
-    vector<HeaderFrame> responses;
-    vector<HeaderFrame> timings;
-
-    /*
-     * 1. get the har file and parse it
-     */
-    ifstream harFile("harinfo.txt", ios::in);
-    vector<string> hars;
-
-    if (harFile.good())
-    {
-        string directory = "";
-        while (!harFile.eof())
-        {
-            string line;
-            getline(harFile, line);
-
-            if (line.empty() || line[0]=='#')
-                continue;
-
-            if (directory.size() == 0 && line.find("D:") != string::npos)
-            {
-                directory.assign(line.substr(2));
-                EV_DEBUG_NOMODULE << "read line and it's a directory line. directory is: " << directory << endl;
-            }
-            else
-            {
-                hars.push_back(directory + line);
-                EV_DEBUG_NOMODULE << "read line #" << hars.size() << ". line content is: " << line << endl;
-                EV_DEBUG_NOMODULE << "read line #" << hars.size() << ". store in hars is: " << hars.back() << endl;
-            }
-
-        }
-
-    }
-    else
-    {
-        throw cRuntimeError("Can not open file, harinfo.txt");
-    }
-
-    int n_files = hars.size();
-    EV_DEBUG_NOMODULE << "n_files is: " << n_files << endl;
-    char** files = new char*[n_files];
-
-    for (unsigned int i = 0; i < n_files; i++)
-    {
-        files[i] = new char[hars[i].size() + 1];
-        strcpy(files[i], hars[i].c_str());
-    }
-
-    ParseHarFiles(n_files, files, &requests, &responses, &timings);
-
-    EV_DEBUG_NOMODULE << "after ParseHarFiles, requests size is " << requests.size() << endl;
-    EV_DEBUG_NOMODULE << "after ParseHarFiles, responses size is " << responses.size() << endl;
-    EV_DEBUG_NOMODULE << "after ParseHarFiles, timings size is " << timings.size() << endl;
-
-    for (unsigned int i = 0; i < n_files; i++)
-    {
-        delete[] files[i];
-    }
-    delete[] files;
-
-
-    /*
-     * 2. prepare for the server and browser using
-     */
-    size_t pair_count = 0;
-
-    //initialize sitedef file
-    ofstream sitedef("har.sitedef", ios::out|ios::trunc);
-    sitedef << "[HTML]" << endl;
-    sitedef << "/har;har.pagedef;100" << endl;
-    sitedef << endl;
-    sitedef << "[RESOURCES]" << endl;
-    ofstream pagedef("har.pagedef", ios::out|ios::trunc);
-
-    for (unsigned int i = 0; i < requests.size(); ++i)
-    {
-        ++pair_count;
-        unsigned int j;
-        for (j = 0; j < requests[i].size(); ++j)
-        {
-            if (requests[i][j].key.find(":path") != string::npos)
-            {
-                /*
-                 * record request and response map for browser and server check to generate messages
-                 * the key is the request-uri in each request
-                 */
-                EV_DEBUG_NOMODULE << "Initialize No." << i << " pair of headers, key in map is " << requests[i][j].val << endl;
-
-                string key = requests[i][j].val;
-
-                /*
-                 * if there is ";" in path, cannot simply use it as key
-                 * if do so, when parse the sitedef file, will get error, since we use ";" as the token to seperate resource and its size
-                 * so just use the substring before first';' to be the key
-                 */
-                if (key.find(";") != string::npos)
-                {
-                    // Parse the key string on ';', and just use the substring before first';' to be the key
-                    cStringTokenizer tokenizer = cStringTokenizer(key.c_str(), ";");
-                    std::vector<std::string> res = tokenizer.asVector();
-                    key = res[0];
-                    EV_DEBUG_NOMODULE << "change key to " << key << endl;
-                }
-
-                /*
-                 * if there is "[" in path, cannot simply use it as key
-                 * if do so, when parse the sitedef file, will get error, treat it as sectionsub
-                 * so just use the substring before first'[' to be the key
-                 */
-                if (key.find("[") != string::npos)
-                {
-                    // Parse the key string on '[', and just use the substring before first'[' to be the key
-                    cStringTokenizer tokenizer = cStringTokenizer(key.c_str(), "[");
-                    std::vector<std::string> res = tokenizer.asVector();
-                    key = res[0];
-                    EV_DEBUG_NOMODULE << "change key to " << key << endl;
-                }
-
-                EV_DEBUG_NOMODULE << "Request is" << endl;
-                OutputHeaderFrame(requests[i]);
-                requestMap.insert(make_pair(key, requests[i]));
-
-                EV_DEBUG_NOMODULE << "Response is" << endl;
-                OutputHeaderFrame(responses[i]);
-                responseMap.insert(make_pair(key, responses[i]));
-
-                EV_DEBUG_NOMODULE << "Timings is" << endl;
-                OutputHeaderFrame(timings[i]);
-                timingsMap.insert(make_pair(key, timings[i]));
-
-                /*
-                 * generate sitedef file and the pagedef file
-                 */
-                pagedef << key << endl;
-                sitedef << key << ";";
-//                if (key.size() == 1)
-//                {
-//                    sitedef << key << ";";
-//                }
-//                else
-//                {
-//                    sitedef << trimLeft(key, "/") << ";";
-//                }
-                unsigned int k;
-                for (k = 0; k < responses[i].size(); ++k)
-                {
-                    if (responses[i][k].key.find("Content-Length") != string::npos)
-                    {
-                        sitedef << responses[i][k].val << endl;
-                        break;
-                    }
-                }
-                //if cannot find some resources' content-length, use 0 to let the sitedef file has the right style.
-                if (k == responses[i].size())
-                {
-                    sitedef << "0" << endl;
-                }
-
-                break;
-            }
-        }
-        if (j == requests[i].size())
-        {
-            EV_ERROR_NOMODULE << "When i is " << i << " cannot find path key" << endl;
-            EV_DEBUG_NOMODULE << "Request is" << endl;
-            OutputHeaderFrame(requests[i]);
-            EV_DEBUG_NOMODULE << "Response is" << endl;
-            OutputHeaderFrame(responses[i]);
-            EV_DEBUG_NOMODULE << "Timings is" << endl;
-            OutputHeaderFrame(timings[i]);
-        }
-
-    }
-
-    sitedef.close();
-    pagedef.close();
-
-    EV_DEBUG_NOMODULE << "Total messages pair number is " << pair_count << endl;
-    EV_DEBUG_NOMODULE << "Total request map size is " << requestMap.size() << endl;
 }
 
 HarParser::~HarParser()
 {
     // TODO Auto-generated destructor stub
+}
+
+void HarParser::initialize(int stage)
+{
+    EV_DEBUG << "Initializing stage " << stage << endl;
+    if (stage==0)
+    {
+        /*
+         * 0. get the configuration information
+         */
+        protocolType = par("protocolType");
+        harInfoFile = (const char*)par("harInfoFile");
+
+        vector<HeaderFrame> requests;
+        vector<HeaderFrame> responses;
+        vector<HeaderFrame> timings;
+
+        /*
+         * 1. get the har file and parse it
+         */
+        ifstream harFile(harInfoFile, ios::in);
+        vector<string> hars;
+
+        if (harFile.good())
+        {
+            string directory = "";
+            while (!harFile.eof())
+            {
+                string line;
+                getline(harFile, line);
+
+                if (line.empty() || line[0]=='#')
+                    continue;
+
+                if (directory.size() == 0 && line.find("D:") != string::npos)
+                {
+                    directory.assign(line.substr(2));
+                    EV_DEBUG << "read line and it's a directory line. directory is: " << directory << endl;
+                }
+                else
+                {
+                    hars.push_back(directory + line);
+                    EV_DEBUG << "read line #" << hars.size() << ". line content is: " << line << endl;
+                    EV_DEBUG << "read line #" << hars.size() << ". store in hars is: " << hars.back() << endl;
+                }
+
+            }
+
+        }
+        else
+        {
+            throw cRuntimeError("Can not open file, harinfo.txt");
+        }
+
+        int n_files = hars.size();
+        EV_DEBUG << "n_files is: " << n_files << endl;
+        char** files = new char*[n_files];
+
+        for (unsigned int i = 0; i < n_files; i++)
+        {
+            files[i] = new char[hars[i].size() + 1];
+            strcpy(files[i], hars[i].c_str());
+        }
+
+        ParseHarFiles(n_files, files, &requests, &responses, &timings);
+
+        EV_DEBUG << "after ParseHarFiles, requests size is " << requests.size() << endl;
+        EV_DEBUG << "after ParseHarFiles, responses size is " << responses.size() << endl;
+        EV_DEBUG << "after ParseHarFiles, timings size is " << timings.size() << endl;
+
+        for (unsigned int i = 0; i < n_files; i++)
+        {
+            delete[] files[i];
+        }
+        delete[] files;
+
+
+        /*
+         * 2. prepare for the server and browser using
+         */
+        size_t pair_count = 0;
+
+        //initialize sitedef file
+        ofstream sitedef("har.sitedef", ios::out|ios::trunc);
+        sitedef << "[HTML]" << endl;
+        sitedef << "/har;har.pagedef;100" << endl;
+        sitedef << endl;
+        sitedef << "[RESOURCES]" << endl;
+        ofstream pagedef("har.pagedef", ios::out|ios::trunc);
+
+        for (unsigned int i = 0; i < requests.size(); ++i)
+        {
+            ++pair_count;
+            unsigned int j;
+            for (j = 0; j < requests[i].size(); ++j)
+            {
+                if (requests[i][j].key.find(":path") != string::npos)
+                {
+                    /*
+                     * record request and response map for browser and server check to generate messages
+                     * the key is the request-uri in each request
+                     */
+                    EV_DEBUG << "Initialize No." << i << " pair of headers, key in map is " << requests[i][j].val << endl;
+
+                    string key = requests[i][j].val;
+
+                    /*
+                     * if there is ";" in path, cannot simply use it as key
+                     * if do so, when parse the sitedef file, will get error, since we use ";" as the token to seperate resource and its size
+                     * so just use the substring before first';' to be the key
+                     */
+                    if (key.find(";") != string::npos)
+                    {
+                        // Parse the key string on ';', and just use the substring before first';' to be the key
+                        cStringTokenizer tokenizer = cStringTokenizer(key.c_str(), ";");
+                        std::vector<std::string> res = tokenizer.asVector();
+                        key = res[0];
+                        EV_DEBUG << "change key to " << key << endl;
+                    }
+
+                    /*
+                     * if there is "[" in path, cannot simply use it as key
+                     * if do so, when parse the sitedef file, will get error, treat it as sectionsub
+                     * so just use the substring before first'[' to be the key
+                     */
+                    if (key.find("[") != string::npos)
+                    {
+                        // Parse the key string on '[', and just use the substring before first'[' to be the key
+                        cStringTokenizer tokenizer = cStringTokenizer(key.c_str(), "[");
+                        std::vector<std::string> res = tokenizer.asVector();
+                        key = res[0];
+                        EV_DEBUG << "change key to " << key << endl;
+                    }
+
+                    EV_DEBUG << "Request is" << endl;
+                    OutputHeaderFrame(requests[i]);
+                    requestMap.insert(make_pair(key, requests[i]));
+
+                    EV_DEBUG << "Response is" << endl;
+                    OutputHeaderFrame(responses[i]);
+                    responseMap.insert(make_pair(key, responses[i]));
+
+                    EV_DEBUG << "Timings is" << endl;
+                    OutputHeaderFrame(timings[i]);
+                    timingsMap.insert(make_pair(key, timings[i]));
+
+                    /*
+                     * generate sitedef file and the pagedef file
+                     */
+                    pagedef << key << endl;
+                    sitedef << key << ";";
+    //                if (key.size() == 1)
+    //                {
+    //                    sitedef << key << ";";
+    //                }
+    //                else
+    //                {
+    //                    sitedef << trimLeft(key, "/") << ";";
+    //                }
+                    unsigned int k;
+                    for (k = 0; k < responses[i].size(); ++k)
+                    {
+                        if (responses[i][k].key.find("Content-Length") != string::npos)
+                        {
+                            sitedef << responses[i][k].val << endl;
+                            break;
+                        }
+                    }
+                    //if cannot find some resources' content-length, use 0 to let the sitedef file has the right style.
+                    if (k == responses[i].size())
+                    {
+                        sitedef << "0" << endl;
+                    }
+
+                    break;
+                }
+            }
+            if (j == requests[i].size())
+            {
+                EV_ERROR << "When i is " << i << " cannot find path key" << endl;
+                EV_DEBUG << "Request is" << endl;
+                OutputHeaderFrame(requests[i]);
+                EV_DEBUG << "Response is" << endl;
+                OutputHeaderFrame(responses[i]);
+                EV_DEBUG << "Timings is" << endl;
+                OutputHeaderFrame(timings[i]);
+            }
+
+        }
+
+        sitedef.close();
+        pagedef.close();
+
+        EV_DEBUG << "Total messages pair number is " << pair_count << endl;
+        EV_DEBUG << "Total request map size is " << requestMap.size() << endl;
+    }
+}
+
+void HarParser::finish()
+{
+}
+
+void HarParser::handleMessage(cMessage *msg)
+{
+    delete msg;
 }
 
 HeaderFrame HarParser::getRequest(string requestURI)
@@ -211,13 +233,13 @@ HeaderFrame HarParser::getRequest(string requestURI)
     iter = requestMap.find(requestURI);
     if (iter != requestMap.end())
     {
-        EV_DEBUG_NOMODULE << "Find the requestURI [" << requestURI << "] related request message, header frame is" << endl;
+        EV_DEBUG << "Find the requestURI [" << requestURI << "] related request message, header frame is" << endl;
         OutputHeaderFrame(iter->second);
         return iter->second;
     }
     else
     {
-        EV_DEBUG_NOMODULE << "Do not find the requestURI [" << requestURI << "] related request message" << endl;
+        EV_DEBUG << "Do not find the requestURI [" << requestURI << "] related request message" << endl;
         HeaderFrame emptyFrame;
         return emptyFrame;
     }
@@ -229,13 +251,13 @@ HeaderFrame HarParser::getResponse(string requestURI)
     iter = responseMap.find(requestURI);
     if (iter != responseMap.end())
     {
-        EV_DEBUG_NOMODULE << "Find the requestURI [" << requestURI << "] related response message, header frame is" << endl;
+        EV_DEBUG << "Find the requestURI [" << requestURI << "] related response message, header frame is" << endl;
         OutputHeaderFrame(iter->second);
         return iter->second;
     }
     else
     {
-        EV_DEBUG_NOMODULE << "Do not find the requestURI [" << requestURI << "] related response message" << endl;
+        EV_DEBUG << "Do not find the requestURI [" << requestURI << "] related response message" << endl;
         HeaderFrame emptyFrame;
         return emptyFrame;
     }
@@ -247,13 +269,13 @@ HeaderFrame HarParser::getTiming(string requestURI)
     iter = timingsMap.find(requestURI);
     if (iter != timingsMap.end())
     {
-        EV_DEBUG_NOMODULE << "Find the requestURI [" << requestURI << "] related timings, timing info is" << endl;
+        EV_DEBUG << "Find the requestURI [" << requestURI << "] related timings, timing info is" << endl;
         OutputHeaderFrame(iter->second);
         return iter->second;
     }
     else
     {
-        EV_DEBUG_NOMODULE << "Do not find the requestURI [" << requestURI << "] related timings message" << endl;
+        EV_DEBUG << "Do not find the requestURI [" << requestURI << "] related timings message" << endl;
         HeaderFrame emptyFrame;
         return emptyFrame;
     }
@@ -280,38 +302,23 @@ int HarParser::ParseHarFiles(int n_files, char** files, vector<HeaderFrame>* req
         char** new_argv = new char*[n_files + 2];
 
         // depend on the protocol to call the right py
-        ifstream protocolFile("protocol.txt", ios::in);
-        if (protocolFile.good())
+        switch (protocolType)
         {
-            string protocol = "";
-            while (!protocolFile.eof())
-            {
-                string line;
-                getline(protocolFile, line);
-
-                if (line.empty() || line[0]=='#')
-                    continue;
-
-                protocol.assign(line);
-                EV_DEBUG_NOMODULE << "read line and get the protocol type which is: " << protocol << endl;
-                break;
-            }
-            if (protocol.find("HTTP") != string::npos)
-            {
+            case HTTP:
                 new_argv[0] = (char*) "./../src/protocolUtils/harfile_translator_http.py";
-            }
-            else if (protocol.find("SPDY") != string::npos)
-            {
+                break;
+            case SPDY_ZLIB_HTTP:
+                new_argv[0] = (char*) "./../src/protocolUtils/harfile_translator_http.py";
+                break;
+            case SPDY_HEADER_BLOCK:
                 new_argv[0] = (char*) "./../src/protocolUtils/harfile_translator_spdy.py";
-            }
-            else
-            {
-                throw cRuntimeError("Get the unrecognized protocol");
-            }
-        }
-        else
-        {
-            throw cRuntimeError("Can not open file, protocol.txt");
+                break;
+            //TODO
+            case HTTPNF:
+                new_argv[0] = (char*) "./../src/protocolUtils/harfile_translator_spdy.py";
+                break;
+            default:
+                throw cRuntimeError("Invalid Application protocol: %d", protocolType);
         }
 
         for (int i = 0; i < n_files; ++i)
@@ -357,7 +364,7 @@ int HarParser::ParseHarFiles(int n_files, char** files, vector<HeaderFrame>* req
 
     if (!ParseStream(input, requests, responses, timings))
     {
-        EV_ERROR_NOMODULE << "Failed to parse correctly. Exiting\n";
+        EV_ERROR << "Failed to parse correctly. Exiting\n";
         return 0;
     }
     return 1;
@@ -370,7 +377,7 @@ void HarParser::OutputHeaderFrame(const HeaderFrame& hf)
         auto line = *i;
         const string& k = line.key;
         const string& v = line.val;
-        EV_DEBUG_NOMODULE << k << ": " << v << "\n";
+        EV_DEBUG << k << ": " << v << "\n";
     }
 }
 

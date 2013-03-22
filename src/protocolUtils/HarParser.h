@@ -26,6 +26,11 @@
 #include <map>
 #include <fstream>
 
+#include <omnetpp.h>
+#include "ProtocolTypeDef.h"
+#include "HttpUtils.h"
+#include "HttpLogdefs.h"
+
 using std::vector;
 using std::memset;
 using std::fixed;
@@ -72,28 +77,35 @@ typedef vector<KVPair> Lines;
 
 typedef Lines HeaderFrame;
 
-class HarParser
+class HarParser : public cSimpleModule
 {
     public:
-        static HarParser * Instance()
-        {
-            if (0 == _instance.get())
-            {
-                _instance.reset(new HarParser());
-            }
-            return _instance.get();
-        }
+        HarParser();
+        virtual ~HarParser();
 
         HeaderFrame getRequest(string requestURI);
         HeaderFrame getResponse(string requestURI);
         HeaderFrame getTiming(string requestURI);
 
     protected:
-        HarParser();
-        virtual ~HarParser();
-        friend class auto_ptr<HarParser>;
-        typedef auto_ptr<HarParser> HarParserPtr;
-        static HarParserPtr _instance;
+        /** @name cSimpleModule redefinitions */
+        //@{
+        /**
+         * Initialization of the component and startup of browse event scheduling.
+         * Multi-stage is required to properly initialize the object for random site selection after
+         * all servers have been registered.
+         */
+        virtual void initialize(int stage);
+
+        /** Report final statistics */
+        virtual void finish();
+
+        /** Handle incoming messages */
+        virtual void handleMessage(cMessage *msg);
+
+        /** Returns the number of initialization stages. Two required. */
+        int numInitStages() const {return 2;}
+        //@}
 
     private:
         int ParseHarFiles(int n_files, char** files, vector<HeaderFrame>* requests, vector<HeaderFrame>* responses, vector<HeaderFrame>* timings);
@@ -111,6 +123,9 @@ class HarParser
         HeaderMap requestMap;
         HeaderMap responseMap;
         HeaderMap timingsMap;
+
+        int protocolType;
+        string harInfoFile;          // har file info configuration file.
 
 };
 

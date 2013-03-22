@@ -24,7 +24,9 @@ void HarBrowser::initialize(int stage)
     // TODO - Generated method body
     if (stage == 0)
     {
-        pHarParser = HarParser::Instance();
+        pHarParser = dynamic_cast<HarParser*>(getParentModule()->getParentModule()->getSubmodule("harParser"));
+        if (pHarParser == NULL)
+            error("Controller module not found");
     }
 
     NSCHttpBrowser::initialize(stage);
