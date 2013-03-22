@@ -22,7 +22,7 @@ Define_Module(HarBrowser);
 void HarBrowser::initialize(int stage)
 {
     // TODO - Generated method body
-    if (stage==0)
+    if (stage == 0)
     {
         pHarParser = HarParser::Instance();
     }
@@ -57,11 +57,11 @@ void HarBrowser::finish()
 /*
  * Format a Request message to HTTP Request Message Header
  * Request   = Request-Line
-                *(( general-header)
-                | request-header
-                | entity-header)CRLF)
-                CRLF
-                [ message-body ]
+ *(( general-header)
+ | request-header
+ | entity-header)CRLF)
+ CRLF
+ [ message-body ]
  */
 std::string HarBrowser::formatHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest)
 {
@@ -74,7 +74,7 @@ std::string HarBrowser::formatHttpRequestMessageHeader(const RealHttpRequestMess
      */
     // Parse the request string on spaces
     cStringTokenizer tokenizer = cStringTokenizer(httpRequest->heading(), " ");
-    std::vector<std::string> res = tokenizer.asVector();
+    std::vector < std::string > res = tokenizer.asVector();
     if (res.size() != 3)
     {
         EV_ERROR << "Invalid request string: " << httpRequest->heading() << endl;
@@ -112,7 +112,7 @@ std::string HarBrowser::formatHttpRequestMessageHeader(const RealHttpRequestMess
             EV_DEBUG << "original method is " << requestFrame[i].val << endl;
             //since the method get from har is lower, need to transform to upper
             method.assign(requestFrame[i].val);
-            std::transform(method.begin(), method.end(), method.begin(), (int (*)(int))std::toupper);
+            std::transform(method.begin(), method.end(), method.begin(), (int(*)(int))std::toupper);
             EV_DEBUG << "generate method " << method << endl;
             continue;
         }
@@ -151,7 +151,6 @@ std::string HarBrowser::formatHttpRequestMessageHeader(const RealHttpRequestMess
     /** 1.3 HTTP-Version CRLF */
     str << version << "\r\n";
 
-
     /**
      * 2.Generate the rest header
      */
@@ -175,6 +174,82 @@ std::string HarBrowser::formatHttpRequestMessageHeader(const RealHttpRequestMess
     /*************************************Finish generating HTTP Request Header*************************************/
 
     str << "\r\n";
+
+    return str.str();
+}
+
+/** Format a Request message to SPDY Header Block Request Message Header
+ *  +-------------------+                |
+ | Number of Name/Value pairs (int32) |   <+
+ +------------------------------------+    |
+ |     Length of name (int32)         |    | This section is the "Name/Value
+ +------------------------------------+    | Header Block", and is compressed.
+ |           Name (string)            |    |
+ +------------------------------------+    |
+ |     Length of value  (int32)       |    |
+ +------------------------------------+    |
+ |          Value   (string)          |    |
+ +------------------------------------+    |
+ |           (repeats)                |   <+
+ */
+std::string HarBrowser::formatHeaderBlockRequestMessageHeader(const RealHttpRequestMessage *httpRequest)
+{
+    requestSent++;
+
+    std::ostringstream str;
+
+    /*
+     * get the har request for this request-uri
+     */
+    // Parse the request string on spaces
+    cStringTokenizer tokenizer = cStringTokenizer(httpRequest->heading(), " ");
+    std::vector < std::string > res = tokenizer.asVector();
+    if (res.size() != 3)
+    {
+        EV_ERROR << "Invalid request string: " << httpRequest->heading() << endl;
+    }
+
+    HeaderFrame requestFrame;
+    if (res[0] == "GET")
+    {
+        // use the resource string part whith is the request-uri to get the real har requests
+        requestFrame = pHarParser->getRequest(res[1]);
+        if (requestFrame.size() == 0)
+        {
+            EV_ERROR << "requestFrame size is 0, call NSCHttpBrowser::formatHeaderBlockRequestMessageHeader." << endl;
+            return NSCHttpBrowser::formatHeaderBlockRequestMessageHeader(httpRequest);
+        }
+        EV_DEBUG << "requestFrame size is: " << requestFrame.size() << endl;
+    }
+    else
+    {
+        EV_ERROR << "Unsupported request type " << res[0] << " for " << httpRequest->heading() << endl;
+        return NSCHttpBrowser::formatHeaderBlockRequestMessageHeader(httpRequest);
+    }
+
+    requestHarGenerated++;
+
+    /*************************************Generate Number of Name/Value pairs*************************************/
+
+    uint32_t nvLen = requestFrame.size();
+
+    str << nvLen;
+
+    EV_DEBUG << "Number of Name/Value pairs is: " << nvLen << endl;
+
+    /*************************************Finish generating Number of Name/Value pairs*************************************/
+
+    /*************************************Generate Name-Value Header Block*************************************/
+    for (unsigned int i = 0; i < requestFrame.size(); ++i)
+    {
+        EV_DEBUG << "read headerFrame, key is " << requestFrame[i].key << endl;
+        const string& k = requestFrame[i].key;
+        const string& v = requestFrame[i].val;
+
+        str << formatNameValuePair(k, v);
+
+    }
+    /*************************************Finish generating Name-Value Header Block*************************************/
 
     return str.str();
 }

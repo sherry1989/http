@@ -27,11 +27,11 @@ Define_Module(HarServer);
 void HarServer::initialize(int stage)
 {
     // TODO - Generated method body
-    if (stage==0)
+    if (stage == 0)
     {
         pHarParser = HarParser::Instance();
     }
-    else if (stage==1)
+    else if (stage == 1)
     {
         NSCHttpServer::initialize();
 
@@ -64,7 +64,7 @@ void HarServer::finish()
 HttpReplyMessage* HarServer::handleReceivedMessage(cMessage *msg)
 {
     HttpRequestMessage *request = check_and_cast<HttpRequestMessage *>(msg);
-    if (request==NULL)
+    if (request == NULL)
         error("Message (%s)%s is not a valid request", msg->getClassName(), msg->getName());
 
     EV_DEBUG << "Handling received message " << msg->getName() << ". Target URL: " << request->targetUrl() << endl;
@@ -83,7 +83,7 @@ HttpReplyMessage* HarServer::handleReceivedMessage(cMessage *msg)
 
     // Parse the request string on spaces
     cStringTokenizer tokenizer = cStringTokenizer(request->heading(), " ");
-    std::vector<std::string> res = tokenizer.asVector();
+    std::vector < std::string > res = tokenizer.asVector();
     if (res.size() != 3)
     {
         EV_ERROR << "Invalid request string: " << request->heading() << endl;
@@ -117,7 +117,7 @@ HttpReplyMessage* HarServer::handleReceivedMessage(cMessage *msg)
         httpResponse = generateErrorReply(request, 400);
     }
 
-    if (httpResponse!=NULL)
+    if (httpResponse != NULL)
     {
         logResponse(httpResponse);
 
@@ -136,12 +136,12 @@ HttpReplyMessage* HarServer::handleReceivedMessage(cMessage *msg)
 
 void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool urgent)
 {
-    if (yourPtr==NULL)
+    if (yourPtr == NULL)
     {
         EV_ERROR << "Socket establish failure. Null pointer" << endl;
         return;
     }
-    TCPSocket *socket = (TCPSocket*)yourPtr;
+    TCPSocket *socket = (TCPSocket*) yourPtr;
 
     HttpRequestParser *praser = new HttpRequestParser();
 
@@ -150,13 +150,14 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
     cPacket *prasedMsg = praser->praseHttpRequest(msg, protocolType, &inflater);
 
     // Should be a HttpRequestMessage
-    EV_DEBUG << "Socket data arrived on connection " << connId << ". Message=" << prasedMsg->getName() << ", kind=" << prasedMsg->getKind() << endl;
+    EV_DEBUG << "Socket data arrived on connection " << connId << ". Message=" << prasedMsg->getName() << ", kind="
+            << prasedMsg->getKind() << endl;
 
     // call the message handler to process the message.
     HttpReplyMessage *reply = handleReceivedMessage(prasedMsg);
     recvReqTimeVec.record(simTime());
 
-    if (reply!=NULL)
+    if (reply != NULL)
     {
         /*
          * add delay time to send reply, in order to make HOL possible
@@ -172,9 +173,9 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
             RealHttpReplyMessage *httpResponse = check_and_cast<RealHttpReplyMessage*>(reply);
 
             //can not get request URI, generate it ramdomly
-            if (strcmp(httpResponse->requestURI(),"") == 0)
+            if (strcmp(httpResponse->requestURI(), "") == 0)
             {
-                replyDelay = (double)(rdReplyDelay->draw());
+                replyDelay = (double) (rdReplyDelay->draw());
             }
             else
             {
@@ -184,7 +185,7 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
                 if (timings.size() == 0)
                 {
                     //can not find the timings, generate it ramdomly
-                    replyDelay = (double)(rdReplyDelay->draw());
+                    replyDelay = (double) (rdReplyDelay->draw());
                 }
                 else
                 {
@@ -194,15 +195,16 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
                         //---Note: here should cmp ":status-text" before ":status", or ":status" may get ":status-text" value
                         if (timings[i].key.find("wait") != string::npos)
                         {
-                            replyDelay = (double)(atof(timings[i].val.c_str())/1000);
-                            EV_DEBUG << "Find wait time for requestURI " << httpResponse->requestURI() <<", replyDelay is " << replyDelay << endl;
+                            replyDelay = (double) (atof(timings[i].val.c_str()) / 1000);
+                            EV_DEBUG << "Find wait time for requestURI " << httpResponse->requestURI()
+                                    << ", replyDelay is " << replyDelay << endl;
                             break;
                         }
                     }
                     if (i == timings.size())
                     {
                         //can not find wait in the timings, generate it ramdomly
-                        replyDelay = (double)(rdReplyDelay->draw());
+                        replyDelay = (double) (rdReplyDelay->draw());
                     }
                 }
             }
@@ -210,9 +212,10 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
         }
         else
         {
-            replyDelay = (double)(rdReplyDelay->draw());
+            replyDelay = (double) (rdReplyDelay->draw());
         }
-        EV_DEBUG << "Need to send message on socket " << socket << ". Message=" << reply->getName() << ", kind=" << reply->getKind() <<", sendDelay = " << replyDelay << endl;
+        EV_DEBUG << "Need to send message on socket " << socket << ". Message=" << reply->getName() << ", kind="
+                << reply->getKind() << ", sendDelay = " << replyDelay << endl;
 
         if (replyDelay == 0)
         {
@@ -229,7 +232,8 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
                  * check if there's earlier reply not send
                  */
                 bool readyToSend = true;
-                for (HttpReplyInfoQueue::iterator iter = replyInfoPerSocket[socket].begin(); iter != replyInfoPerSocket[socket].end(); iter++)
+                for (HttpReplyInfoQueue::iterator iter = replyInfoPerSocket[socket].begin();
+                        iter != replyInfoPerSocket[socket].end(); iter++)
                 {
                     readyToSend &= iter->readyToSend;
                 }
@@ -243,7 +247,8 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
                 else
                 {
                     //HttpReplyMessage *realhttpResponse = dynamic_cast<HttpReplyMessage*>(reply);
-                    ReplyInfo replyInfo = {reply, true};
+                    ReplyInfo replyInfo =
+                    { reply, true };
                     replyInfoPerSocket[socket].push_back(replyInfo);
                 }
             }
@@ -251,7 +256,8 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
         else
         {
             //HttpReplyMessage *realhttpResponse = dynamic_cast<HttpReplyMessage*>(reply);
-            ReplyInfo replyInfo = {reply, false};
+            ReplyInfo replyInfo =
+            { reply, false };
             if (replyInfoPerSocket.find(socket) == replyInfoPerSocket.end())
             {
                 HttpReplyInfoQueue tempQueue;
@@ -265,7 +271,7 @@ void HarServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, bool 
             }
 
             reply->setKind(HTTPT_DELAYED_RESPONSE_MESSAGE);
-            scheduleAt(simTime()+replyDelay, reply);
+            scheduleAt(simTime() + replyDelay, reply);
         }
     }
     delete prasedMsg; // Delete the received message here. Must not be deleted in the handler!
@@ -285,7 +291,7 @@ std::string HarServer::formatByteResponseMessage(TCPSocket *socket, HttpReplyMes
     RealHttpReplyMessage *realhttpResponse = check_and_cast<RealHttpReplyMessage*>(httpResponse);
     std::string resHeader;
 
-    switch(protocolType)
+    switch (protocolType)
     {
         case HTTP:
             resHeader = formatHttpResponseMessageHeader(realhttpResponse);
@@ -305,13 +311,14 @@ std::string HarServer::formatByteResponseMessage(TCPSocket *socket, HttpReplyMes
 
     /*************************************Generate HTTP Response Body*************************************/
 
-    EV_DEBUG << "Generate HTTP Response Body:"<< realhttpResponse->payload()<< endl;
+    EV_DEBUG << "Generate HTTP Response Body:" << realhttpResponse->payload() << endl;
     resHeader.append(realhttpResponse->payload());
-    EV_DEBUG << "Payload Length is" <<(int64_t)strlen(realhttpResponse->payload()) << ". " << endl;
-    if (realhttpResponse->contentLength() > (int64_t)strlen(realhttpResponse->payload()))
+    EV_DEBUG << "Payload Length is" << (int64_t) strlen(realhttpResponse->payload()) << ". " << endl;
+    if (realhttpResponse->contentLength() > (int64_t) strlen(realhttpResponse->payload()))
     {
-        resHeader.append((realhttpResponse->contentLength() - (int64_t)strlen(realhttpResponse->payload())), '\n');
-        EV_DEBUG << "Add NULL char. contentLength is" << realhttpResponse->contentLength() << ", payload Length is" <<(int64_t)strlen(realhttpResponse->payload()) << ". " << endl;
+        resHeader.append((realhttpResponse->contentLength() - (int64_t) strlen(realhttpResponse->payload())), '\n');
+        EV_DEBUG << "Add NULL char. contentLength is" << realhttpResponse->contentLength() << ", payload Length is"
+                << (int64_t) strlen(realhttpResponse->payload()) << ". " << endl;
     }
 
     /*************************************Finish generating HTTP Response Body*************************************/
@@ -325,11 +332,11 @@ std::string HarServer::formatByteResponseMessage(TCPSocket *socket, HttpReplyMes
 /*
  * Format a response message to HTTP Response Message Header
  * response   = Status-Line
-                *(( general-header)
-                | response-header
-                | entity-header)CRLF)
-                CRLF
-                [ message-body ]
+ *(( general-header)
+ | response-header
+ | entity-header)CRLF)
+ CRLF
+ [ message-body ]
  */
 std::string HarServer::formatHttpResponseMessageHeader(RealHttpReplyMessage *httpResponse)
 {
@@ -339,7 +346,7 @@ std::string HarServer::formatHttpResponseMessageHeader(RealHttpReplyMessage *htt
      * for "Invalid request string" case, requestURI is "" and the size is 0
      * simply call base class's formatHttpResponseMessageHeader
      */
-    if (strcmp(httpResponse->requestURI(),"") == 0)
+    if (strcmp(httpResponse->requestURI(), "") == 0)
     {
         return NSCHttpServer::formatHttpResponseMessageHeader(httpResponse);
     }
@@ -401,14 +408,14 @@ std::string HarServer::formatHttpResponseMessageHeader(RealHttpReplyMessage *htt
         /*
          * in RFC1521, the content-type definition is :
          *    In the Augmented BNF notation of RFC 822, a Content-Type header field value is defined as follows:
-                 content  :=   "Content-Type"  ":"  type  "/"  subtype  *(";" parameter)
-               ; case-insensitive matching of type and subtype
-                 type :=          "application"     / "audio"
-                                   / "image"           / "message"
-                                   / "multipart"  / "text"
-                                   / "video"           / extension-token
-                                   ; All values case-insensitive
-                 extension-token :=  x-token / iana-token
+         content  :=   "Content-Type"  ":"  type  "/"  subtype  *(";" parameter)
+         ; case-insensitive matching of type and subtype
+         type :=          "application"     / "audio"
+         / "image"           / "message"
+         / "multipart"  / "text"
+         / "video"           / extension-token
+         ; All values case-insensitive
+         extension-token :=  x-token / iana-token
          */
         else if (responseFrame[i].key.find("Content-Type") != string::npos)
         {
@@ -416,13 +423,15 @@ std::string HarServer::formatHttpResponseMessageHeader(RealHttpReplyMessage *htt
             {
                 imgResourcesServed++;
             }
-            else if (responseFrame[i].val.find("text") != string::npos || responseFrame[i].val.find("javascript") != string::npos
+            else if (responseFrame[i].val.find("text") != string::npos
+                    || responseFrame[i].val.find("javascript") != string::npos
                     || responseFrame[i].val.find("xml") != string::npos)
             {
                 textResourcesServed++;
             }
             //----Note: since javascript and xml type has application token, should do text statistic before media
-            else if (responseFrame[i].val.find("application") != string::npos || responseFrame[i].val.find("audio") != string::npos
+            else if (responseFrame[i].val.find("application") != string::npos
+                    || responseFrame[i].val.find("audio") != string::npos
                     || responseFrame[i].val.find("video") != string::npos)
             {
                 mediaResourcesServed++;
@@ -447,7 +456,6 @@ std::string HarServer::formatHttpResponseMessageHeader(RealHttpReplyMessage *htt
     /** 1.2 Status-Code SP Reason-Phrase CRLF */
     str << status << " " << statusText << "\r\n";
 
-
     /**
      * 2.Generate the rest header
      */
@@ -470,3 +478,119 @@ std::string HarServer::formatHttpResponseMessageHeader(RealHttpReplyMessage *htt
     return str.str();
 }
 
+/** Format a Response message to SPDY Header Block Response Message Header
+ *  +-------------------+                |
+ | Number of Name/Value pairs (int32) |   <+
+ +------------------------------------+    |
+ |     Length of name (int32)         |    | This section is the "Name/Value
+ +------------------------------------+    | Header Block", and is compressed.
+ |           Name (string)            |    |
+ +------------------------------------+    |
+ |     Length of value  (int32)       |    |
+ +------------------------------------+    |
+ |          Value   (string)          |    |
+ +------------------------------------+    |
+ |           (repeats)                |   <+
+ */
+std::string HarServer::formatHeaderBlockResponseMessageHeader(RealHttpReplyMessage *httpResponse)
+{
+    std::ostringstream str;
+
+    /*
+     * for "Invalid request string" case, requestURI is "" and the size is 0
+     * simply call base class's formatHttpResponseMessageHeader
+     */
+    if (strcmp(httpResponse->requestURI(), "") == 0)
+    {
+        return NSCHttpServer::formatHttpResponseMessageHeader(httpResponse);
+    }
+
+    /*
+     * get the har request for this request-uri
+     */
+    // use the request-uri to get the real har response
+    HeaderFrame responseFrame = pHarParser->getResponse(httpResponse->requestURI());
+
+    if (responseFrame.size() == 0)
+    {
+        return NSCHttpServer::formatHttpResponseMessageHeader(httpResponse);
+    }
+    else
+    {
+        //Find the response, modify the statistics-----step 1, set this not badRequest
+        badRequests--;
+    }
+
+    /*
+     * pre-process the headerFrame
+     */
+    for (unsigned int i = 0; i < responseFrame.size(); ++i)
+    {
+        //reset content-length
+        if (responseFrame[i].key.find("Content-Length") != string::npos)
+        {
+            httpResponse->setContentLength(std::atoi(responseFrame[i].val.c_str()));
+        }
+        //modify the statistics-----step 2, set this served resource depend on the content-type
+        /*
+         * in RFC1521, the content-type definition is :
+         *    In the Augmented BNF notation of RFC 822, a Content-Type header field value is defined as follows:
+         content  :=   "Content-Type"  ":"  type  "/"  subtype  *(";" parameter)
+         ; case-insensitive matching of type and subtype
+         type :=          "application"     / "audio"
+         / "image"           / "message"
+         / "multipart"  / "text"
+         / "video"           / extension-token
+         ; All values case-insensitive
+         extension-token :=  x-token / iana-token
+         */
+        else if (responseFrame[i].key.find("Content-Type") != string::npos)
+        {
+            if (responseFrame[i].val.find("image") != string::npos)
+            {
+                imgResourcesServed++;
+            }
+            else if (responseFrame[i].val.find("text") != string::npos
+                    || responseFrame[i].val.find("javascript") != string::npos
+                    || responseFrame[i].val.find("xml") != string::npos)
+            {
+                textResourcesServed++;
+            }
+            //----Note: since javascript and xml type has application token, should do text statistic before media
+            else if (responseFrame[i].val.find("application") != string::npos
+                    || responseFrame[i].val.find("audio") != string::npos
+                    || responseFrame[i].val.find("video") != string::npos)
+            {
+                mediaResourcesServed++;
+            }
+            else
+            {
+                otherResourcesServed++;
+            }
+        }
+    }
+
+    /*************************************Generate Number of Name/Value pairs*************************************/
+
+    uint32_t nvLen = responseFrame.size();
+
+    str << nvLen;
+
+    EV_DEBUG << "Number of Name/Value pairs is: " << nvLen << endl;
+
+    /*************************************Finish generating Number of Name/Value pairs*************************************/
+
+    /*************************************Generate Name-Value Header Block*************************************/
+    for (unsigned int i = 0; i < responseFrame.size(); ++i)
+    {
+        EV_DEBUG << "read headerFrame, key is " << responseFrame[i].key << endl;
+        const string& k = responseFrame[i].key;
+        const string& v = responseFrame[i].val;
+
+        str << formatNameValuePair(k, v);
+
+    }
+    /*************************************Finish generating Name-Value Header Block*************************************/
+
+    return str.str();
+}

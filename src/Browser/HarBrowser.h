@@ -34,6 +34,9 @@ class HarBrowser : public NSCHttpBrowser
     /** Format a Request message to HTTP Request Message Header */
     virtual std::string formatHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
 
+    /** Format a Request message to SPDY Header Block Request Message Header */
+    virtual std::string formatHeaderBlockRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
+
     HarParser *pHarParser;
 
     // Basic statistics

@@ -98,11 +98,17 @@ class NSCHttpServer : public HttpServer
         /** Deflate a HTTP Response message header using the Name-Value zlib dictionary */
         virtual std::string formatSpdyZlibHttpResponseMessageHeader(TCPSocket *socket, RealHttpReplyMessage *httpResponse);
 
+        /** Format a Response message to SPDY Header Block Response Message Header */
+        virtual std::string formatHeaderBlockResponseMessageHeader(RealHttpReplyMessage *httpResponse);
+
         /** Format a response message header to zlib-deflated SPDY header block */
         virtual std::string formatSpdyZlibHeaderBlockResponseMessageHeader(RealHttpReplyMessage *httpResponse);
 
         /** Format a response message to HTTPNF Response Message Header */
         virtual std::string formatHttpNFResponseMessageHeader(RealHttpReplyMessage *httpResponse);
+
+        /** Format a Name Value Pair */
+        std::string formatNameValuePair(const std::string name, const std::string value);
 
         bool initSockZlibInfo(TCPSocket *sock);
 

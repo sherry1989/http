@@ -52,6 +52,9 @@ class HarServer : public NSCHttpServer
     /** Format a response message to HTTP Response Message Header */
     virtual std::string formatHttpResponseMessageHeader(RealHttpReplyMessage *httpResponse);
 
+    /** Format a Response message to SPDY Header Block Response Message Header */
+    virtual std::string formatHeaderBlockResponseMessageHeader(RealHttpReplyMessage *httpResponse);
+
     HarParser *pHarParser;
 
     // Basic statistics

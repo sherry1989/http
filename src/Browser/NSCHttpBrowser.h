@@ -120,6 +120,9 @@ class NSCHttpBrowser : public HttpBrowser
         /** Format a Request message to HTTP Request Message Header */
         virtual std::string formatHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
 
+        /** Format a Request message to SPDY Header Block Request Message Header */
+        virtual std::string formatHeaderBlockRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
+
         /** Deflate a HTTP Request message header using the Name-Value zlib dictionary */
         virtual std::string formatSpdyZlibHttpRequestMessageHeader(NSCSockData *sockdata, const RealHttpRequestMessage *httpRequest);
 
@@ -128,6 +131,9 @@ class NSCHttpBrowser : public HttpBrowser
 
         /** Format a Request message to HTTPNF Request Message Header */
         virtual std::string formatHttpNFRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
+
+        /** Format a Name Value Pair */
+        std::string formatNameValuePair(const std::string name, const std::string value);
 
     protected:
         /** @name Socket establishment and data submission */
