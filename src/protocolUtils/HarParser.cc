@@ -32,14 +32,17 @@ void HarParser::initialize(int stage)
          */
         protocolType = par("protocolType");
         harInfoFile = (const char*)par("harInfoFile");
-
-        vector<HeaderFrame> requests;
-        vector<HeaderFrame> responses;
-        vector<HeaderFrame> timings;
+        timeSettingType = par("timeSettingType");
+        // only when timeSettingType is set to SAME_CONFIG, waitTime is valid
+        waitTime = par("waitTime");
 
         /*
          * 1. get the har file and parse it
          */
+        vector<HeaderFrame> requests;
+        vector<HeaderFrame> responses;
+        vector<HeaderFrame> timings;
+
         ifstream harFile(harInfoFile, ios::in);
         vector<string> hars;
 
@@ -89,6 +92,8 @@ void HarParser::initialize(int stage)
         EV_DEBUG << "after ParseHarFiles, requests size is " << requests.size() << endl;
         EV_DEBUG << "after ParseHarFiles, responses size is " << responses.size() << endl;
         EV_DEBUG << "after ParseHarFiles, timings size is " << timings.size() << endl;
+
+        ConfigTimings(timings);
 
         for (unsigned int i = 0; i < n_files; i++)
         {
@@ -447,4 +452,119 @@ int HarParser::ParseStream(istream& istrm, vector<HeaderFrame>* requests, vector
         requests->pop_back();
     }
     return 1;
+}
+
+/*
+ * Depends on the timeSettingType, config the timings of each resource:
+   1. timeSettingType is FROM_HAR, do not change the timings get from har file;
+   2. timeSettingType is SAME_CONFIG, change "wait" value in timings to waitTime get from config;
+   3. timeSettingType is AVE_VALUE, change "wait" value in timings to average value of those get from har file;
+   4. timeSettingType is ASCEND_SORT, ascending sort the "wait" value in timings get from har file;
+   5. timeSettingType is DESCEND_SORT, descending sort the "wait" value in timings get from har file.
+ */
+void HarParser::ConfigTimings(vector<HeaderFrame>& timings)
+{
+    switch (timeSettingType)
+    {
+        case FROM_HAR:
+            EV_DEBUG << "Simply use the timings get from har file." << endl;
+            break;
+        case SAME_CONFIG:
+        {
+            EV_DEBUG << "Change \"wait\" value in timings to waitTime get from config." << endl;
+
+            std::ostringstream waitTimeStream;
+            waitTimeStream << waitTime;
+
+            for (vector<HeaderFrame>::iterator iter = timings.begin(); iter != timings.end(); ++iter)
+            {
+                unsigned int i;
+                for (i = 0; i < iter->size(); ++i)
+                {
+                    //---Note: here should cmp ":status-text" before ":status", or ":status" may get ":status-text" value
+                    if ((*iter)[i].key.find("wait") != string::npos)
+                    {
+                        EV_DEBUG << "Find wait time " << (*iter)[i].val
+                                << ", change to " << waitTime << endl;
+
+                        (*iter)[i].val.assign(waitTimeStream.str());
+                        break;
+                    }
+                }
+                if (i == iter->size())
+                {
+                    //can not find wait in the timings, generate it ramdomly
+                    EV_DEBUG << "Cannot find wait time and do not change anything." << endl;
+                }
+            }
+            break;
+        }
+        case AVE_VALUE:
+        {
+            EV_DEBUG << "Change \"wait\" value in timings to average value of those get from har file." << endl;
+            /*
+             * 1. calculate average value
+             */
+            double totalWaitTime = 0.0;
+            for (vector<HeaderFrame>::iterator iter = timings.begin(); iter != timings.end(); ++iter)
+            {
+                unsigned int i;
+                for (i = 0; i < iter->size(); ++i)
+                {
+                    //---Note: here should cmp ":status-text" before ":status", or ":status" may get ":status-text" value
+                    if ((*iter)[i].key.find("wait") != string::npos)
+                    {
+                        EV_DEBUG << "Find wait time " << (*iter)[i].val << endl;
+
+                        totalWaitTime += (double) atof((*iter)[i].val.c_str());
+                        break;
+                    }
+                }
+                if (i == iter->size())
+                {
+                    //can not find wait in the timings, generate it ramdomly
+                    EV_DEBUG << "Cannot find wait time and do not change anything." << endl;
+                }
+            }
+
+            std::ostringstream AveWaitTimeStream;
+            AveWaitTimeStream << (totalWaitTime/timings.size());
+
+            /*
+             * 2. set the average value
+             */
+            for (vector<HeaderFrame>::iterator iter = timings.begin(); iter != timings.end(); ++iter)
+            {
+                unsigned int i;
+                for (i = 0; i < iter->size(); ++i)
+                {
+                    //---Note: here should cmp ":status-text" before ":status", or ":status" may get ":status-text" value
+                    if ((*iter)[i].key.find("wait") != string::npos)
+                    {
+                        EV_DEBUG << "Find wait time " << (*iter)[i].val
+                                << ", change to " << waitTime << endl;
+
+                        (*iter)[i].val.assign(AveWaitTimeStream.str());
+                        break;
+                    }
+                }
+                if (i == iter->size())
+                {
+                    //can not find wait in the timings, generate it ramdomly
+                    EV_DEBUG << "Cannot find wait time and do not change anything." << endl;
+                }
+            }
+            break;
+        }
+        case ASCEND_SORT:
+            EV_DEBUG << "Ascending sort the \"wait\" value in timings get from har file." << endl;
+            //TODO
+            break;
+        case DESCEND_SORT:
+            EV_DEBUG << "Descending sort the \"wait\" value in timings get from har file." << endl;
+            //TODO
+            break;
+        default:
+            throw cRuntimeError("Invalid timeSettingType: %d", timeSettingType);
+    }
 }

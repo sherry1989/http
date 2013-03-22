@@ -51,6 +51,13 @@ using std::getline;
 using std::ifstream;
 using std::istream;
 
+typedef unsigned int TimeSetting_Type;
+const TimeSetting_Type FROM_HAR = 1;
+const TimeSetting_Type SAME_CONFIG = 2;
+const TimeSetting_Type AVE_VALUE = 3;
+const TimeSetting_Type ASCEND_SORT = 4;
+const TimeSetting_Type DESCEND_SORT = 5;
+
 struct KVPair
 {
         string key;
@@ -115,6 +122,9 @@ class HarParser : public cSimpleModule
         static int ParseStream(istream& istrm, vector<HeaderFrame>* requests, vector<HeaderFrame>* responses, vector<HeaderFrame>* timings);
         static HeaderFrame* GetHeaderFramePtr(vector<HeaderFrame>* frames, unsigned int expected_previous_len);
 
+        //Depends on the timeSettingType, config the timings of each resource
+        void ConfigTimings(vector<HeaderFrame>& timings);
+
         /**
          * A list of active sockets for each server
          */
@@ -126,6 +136,8 @@ class HarParser : public cSimpleModule
 
         int protocolType;
         string harInfoFile;          // har file info configuration file.
+        TimeSetting_Type timeSettingType;
+        int waitTime;
 
 };
 
