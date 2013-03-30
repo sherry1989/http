@@ -8,6 +8,8 @@
  */
 
 #include "HarParser.h"
+#include "NSCHttpBrowser.h"
+
 #include <cassert>
 
 Define_Module(HarParser);
@@ -25,12 +27,14 @@ HarParser::~HarParser()
 void HarParser::initialize(int stage)
 {
     EV_DEBUG << "Initializing stage " << stage << endl;
+
+    MsgInfoSrcBase::initialize(stage);
+
     if (stage==0)
     {
         /*
          * 0. get the configuration information
          */
-        protocolType = par("protocolType");
         harInfoFile = (const char*)par("harInfoFile");
         timeSettingType = par("timeSettingType");
         // only when timeSettingType is set to SAME_CONFIG, waitTime is valid
@@ -160,15 +164,15 @@ void HarParser::initialize(int stage)
                     }
 
                     EV_DEBUG << "Request is" << endl;
-                    OutputHeaderFrame(requests[i]);
+                    outputHeaderFrame(requests[i]);
                     requestMap.insert(make_pair(key, requests[i]));
 
                     EV_DEBUG << "Response is" << endl;
-                    OutputHeaderFrame(responses[i]);
+                    outputHeaderFrame(responses[i]);
                     responseMap.insert(make_pair(key, responses[i]));
 
                     EV_DEBUG << "Timings is" << endl;
-                    OutputHeaderFrame(timings[i]);
+                    outputHeaderFrame(timings[i]);
                     timingsMap.insert(make_pair(key, timings[i]));
 
                     /*
@@ -206,11 +210,11 @@ void HarParser::initialize(int stage)
             {
                 EV_ERROR << "When i is " << i << " cannot find path key" << endl;
                 EV_DEBUG << "Request is" << endl;
-                OutputHeaderFrame(requests[i]);
+                outputHeaderFrame(requests[i]);
                 EV_DEBUG << "Response is" << endl;
-                OutputHeaderFrame(responses[i]);
+                outputHeaderFrame(responses[i]);
                 EV_DEBUG << "Timings is" << endl;
-                OutputHeaderFrame(timings[i]);
+                outputHeaderFrame(timings[i]);
             }
 
         }
@@ -232,6 +236,69 @@ void HarParser::handleMessage(cMessage *msg)
     delete msg;
 }
 
+HeaderFrame HarParser::getReqHeaderFrame(const RealHttpRequestMessage *httpRequest, HttpNodeBase *pHttpNode)
+{
+    /*
+     * get the har request for this request-uri
+     */
+    // Parse the request string on spaces
+    cStringTokenizer tokenizer = cStringTokenizer(httpRequest->heading(), " ");
+    std::vector < std::string > res = tokenizer.asVector();
+    if (res.size() != 3)
+    {
+        EV_ERROR << "Invalid request string: " << httpRequest->heading() << endl;
+    }
+
+    if (res[0] == "GET")
+    {
+        // use the resource string part whith is the request-uri to get the real har requests
+        HeaderFrame requestFrame = getRequest(res[1]);
+        if (requestFrame.size() == 0)
+        {
+            EV_ERROR << "requestFrame size is 0, call MsgInfoSrcBase::getReqHeaderFrame to generate header frame." << endl;
+            return MsgInfoSrcBase::getReqHeaderFrame(httpRequest, pHttpNode);
+        }
+        EV_DEBUG << "requestFrame size is: " << requestFrame.size() << endl;
+
+        dynamic_cast<NSCHttpBrowser*>(pHttpNode)->incRequestHarGenerated();
+
+        return requestFrame;
+    }
+    else
+    {
+        EV_ERROR << "Unsupported request type " << res[0] << " for " << httpRequest->heading()
+                << ", call MsgInfoSrcBase::getReqHeaderFrame to generate header frame." << endl;
+        return MsgInfoSrcBase::getReqHeaderFrame(httpRequest, pHttpNode);
+    }
+}
+
+HeaderFrame HarParser::getResHeaderFrame(const RealHttpReplyMessage *httpResponse, HttpNodeBase *pHttpNode)
+{
+    /*
+     * for "Invalid request string" case, requestURI is "" and the size is 0
+     * simply call base class's formatHttpResponseMessageHeader
+     */
+    if (strcmp(httpResponse->requestURI(), "") == 0)
+    {
+        EV_ERROR << "requestURI is NULL " << endl;
+        return MsgInfoSrcBase::getResHeaderFrame(httpResponse, pHttpNode);
+    }
+
+    /*
+     * get the har request for this request-uri
+     */
+    // use the request-uri to get the real har response
+    HeaderFrame responseFrame = getResponse(httpResponse->requestURI());
+    if (responseFrame.size() == 0)
+    {
+        EV_ERROR << "responseFrame size is 0, call MsgInfoSrcBase::getResHeaderFrame to generate header frame." << endl;
+        return MsgInfoSrcBase::getResHeaderFrame(httpResponse, pHttpNode);
+    }
+    EV_DEBUG << "responseFrame size is: " << responseFrame.size() << endl;
+
+    return responseFrame;
+}
+
 HeaderFrame HarParser::getRequest(string requestURI)
 {
     HeaderMap::iterator iter;
@@ -239,7 +306,7 @@ HeaderFrame HarParser::getRequest(string requestURI)
     if (iter != requestMap.end())
     {
         EV_DEBUG << "Find the requestURI [" << requestURI << "] related request message, header frame is" << endl;
-        OutputHeaderFrame(iter->second);
+        outputHeaderFrame(iter->second);
         return iter->second;
     }
     else
@@ -257,7 +324,7 @@ HeaderFrame HarParser::getResponse(string requestURI)
     if (iter != responseMap.end())
     {
         EV_DEBUG << "Find the requestURI [" << requestURI << "] related response message, header frame is" << endl;
-        OutputHeaderFrame(iter->second);
+        outputHeaderFrame(iter->second);
         return iter->second;
     }
     else
@@ -275,7 +342,7 @@ HeaderFrame HarParser::getTiming(string requestURI)
     if (iter != timingsMap.end())
     {
         EV_DEBUG << "Find the requestURI [" << requestURI << "] related timings, timing info is" << endl;
-        OutputHeaderFrame(iter->second);
+        outputHeaderFrame(iter->second);
         return iter->second;
     }
     else
@@ -306,24 +373,17 @@ int HarParser::ParseHarFiles(int n_files, char** files, vector<HeaderFrame>* req
         dup2(pipe_fds[1], 1);
         char** new_argv = new char*[n_files + 2];
 
-        // depend on the protocol to call the right py
-        switch (protocolType)
+        // depend on the header encode type to call the right py
+        switch (headerEncodeType)
         {
-            case HTTP:
-                new_argv[0] = (char*) "./../src/protocolUtils/harfile_translator_http.py";
-                break;
-            case SPDY_ZLIB_HTTP:
-                new_argv[0] = (char*) "./../src/protocolUtils/harfile_translator_http.py";
+            case HTTP_ASCII:
+                new_argv[0] = (char*) "./../src/protocolUtils/MessageInfoSrc/harfile_translator_http.py";
                 break;
             case SPDY_HEADER_BLOCK:
-                new_argv[0] = (char*) "./../src/protocolUtils/harfile_translator_spdy.py";
-                break;
-            //TODO
-            case HTTPNF:
-                new_argv[0] = (char*) "./../src/protocolUtils/harfile_translator_spdy.py";
+                new_argv[0] = (char*) "./../src/protocolUtils/MessageInfoSrc/harfile_translator_spdy.py";
                 break;
             default:
-                throw cRuntimeError("Invalid Application protocol: %d", protocolType);
+                throw cRuntimeError("Invalid header encode type: %d", headerEncodeType);
         }
 
         for (int i = 0; i < n_files; ++i)
@@ -373,17 +433,6 @@ int HarParser::ParseHarFiles(int n_files, char** files, vector<HeaderFrame>* req
         return 0;
     }
     return 1;
-}
-
-void HarParser::OutputHeaderFrame(const HeaderFrame& hf)
-{
-    for (HeaderFrame::const_iterator i = hf.begin(); i != hf.end(); ++i)
-    {
-        auto line = *i;
-        const string& k = line.key;
-        const string& v = line.val;
-        EV_DEBUG << k << ": " << v << "\n";
-    }
 }
 
 HeaderFrame* HarParser::GetHeaderFramePtr(vector<HeaderFrame>* frames, unsigned int expected_previous_len)

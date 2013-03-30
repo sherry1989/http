@@ -22,8 +22,12 @@ import inet.applications.httptools.HttpServer;
 //
 simple NSCHttpServer extends HttpServer
 {
+    parameters:
+        int headerEncodeType = default(1);
+        int headerCompressType = default(1);
+        int messageInfoSrc = default(1);
+        
+        bool getWaitTimeFromHar = default(true);
+    
     @class(NSCHttpServer);
-    //--added by wangqian, 2012-10-16
-    int protocolType = default(1);
-    //--added end
 }

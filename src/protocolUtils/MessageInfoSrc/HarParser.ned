@@ -13,14 +13,14 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package http.src.Browser;
+package http.src.protocolUtils.MessageInfoSrc;
 
-import http.src.Browser.NSCHttpBrowser;
-
-//
-// TODO auto-generated module
-//
-simple HarBrowser extends NSCHttpBrowser
+simple HarParser extends MsgInfoSrcBase
 {
-    @class(HarBrowser);
+    parameters:
+        string harInfoFile = default("harinfo.txt");          // har file info configuration file.
+        int timeSettingType = default(1);
+        int waitTime = default(0);
+        
+    @class(HarParser);
 }

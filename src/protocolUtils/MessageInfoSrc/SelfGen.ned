@@ -13,16 +13,11 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package http.src.Server;
-
-import http.src.Server.NSCHttpServer;
+package http.src.protocolUtils.MessageInfoSrc;
 
 //
 // TODO auto-generated module
 //
-simple HarServer extends NSCHttpServer
+simple SelfGen extends MsgInfoSrcBase
 {
-    @class(HarServer);
-    
-    bool getWaitTimeFromHar = default(true);
 }

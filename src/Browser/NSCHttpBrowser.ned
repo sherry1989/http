@@ -23,20 +23,16 @@ import inet.applications.httptools.HttpBrowser;
 simple NSCHttpBrowser extends HttpBrowser
 {
     parameters:
-        //--added by wangqian, 2012-05-15
         int maxConnections = default(256);
         int maxConnectionsPerHost = default(8);
         int maxPipelinedReqs = default(8);
+        
         int pipeliningMode = default(1);
-        //--added end
-        
-        //--added by wangqian, 2012-05-16
         int SvrSupportDetect = default(1);
-        //--added end
-        
-        //--added by wangqian, 2012-10-16
-        int protocolType = default(1);
-        //--added end
+       
+        int headerEncodeType = default(1);
+        int headerCompressType = default(1);
+        int messageInfoSrc = default(1);
         
     @class(NSCHttpBrowser);
 }

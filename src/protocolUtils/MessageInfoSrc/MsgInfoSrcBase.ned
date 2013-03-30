@@ -13,13 +13,12 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 // 
 
-package http.src.protocolUtils;
+package http.src.protocolUtils.MessageInfoSrc;
 
-simple HarParser
+simple MsgInfoSrcBase
 {
     parameters:
-        int protocolType = default(1);
-        string harInfoFile = default("harinfo.txt");          // har file info configuration file.
-        int timeSettingType = default(1);
-        int waitTime = default(0);
+        int headerEncodeType = default(1);
+        
+    @class(MsgInfoSrcBase);
 }

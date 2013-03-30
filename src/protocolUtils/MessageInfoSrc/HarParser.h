@@ -8,48 +8,7 @@
 #ifndef HARPARSER_H_
 #define HARPARSER_H_
 
-#include <unistd.h>
-#include <fcntl.h>
-#include <time.h>
-
-#include <zlib.h>
-
-#include <memory>
-#include <cstring>
-
-#include <algorithm>
-#include <iostream>
-#include <sstream>
-#include <stdlib.h>
-#include <string>
-#include <vector>
-#include <map>
-#include <fstream>
-
-#include <omnetpp.h>
-#include "ProtocolTypeDef.h"
-#include "HttpUtils.h"
-#include "HttpLogdefs.h"
-
-using std::vector;
-using std::memset;
-using std::fixed;
-using std::cout;
-using std::cerr;
-using std::stringstream;
-using std::string;
-using std::flush;
-using std::max;
-using std::min;
-using std::min;
-using std::ostream;
-using std::map;
-using std::auto_ptr;
-using std::ofstream;
-using std::ios;
-using std::getline;
-using std::ifstream;
-using std::istream;
+#include "MsgInfoSrcBase.h"
 
 typedef unsigned int TimeSetting_Type;
 const TimeSetting_Type FROM_HAR = 1;
@@ -58,37 +17,16 @@ const TimeSetting_Type AVE_VALUE = 3;
 const TimeSetting_Type ASCEND_SORT = 4;
 const TimeSetting_Type DESCEND_SORT = 5;
 
-struct KVPair
-{
-        string key;
-        string val;
-        KVPair()
-        {
-        }
-        KVPair(string key, string val) :
-                key(key), val(val)
-        {
-        }
-        friend ostream& operator<<(ostream& os, const KVPair& kv)
-        {
-            os << "\"" << kv.key << "\" \"" << kv.val << "\"";
-            return os;
-        }
-        size_t size() const
-        {
-            return key.size() + val.size();
-        }
-};
-
-typedef vector<KVPair> Lines;
-
-typedef Lines HeaderFrame;
-
-class HarParser : public cSimpleModule
+class HarParser : public MsgInfoSrcBase
 {
     public:
         HarParser();
         virtual ~HarParser();
+
+        virtual HeaderFrame getReqHeaderFrame(const RealHttpRequestMessage *httpRequest, HttpNodeBase *pHttpNode);
+        virtual HeaderFrame getResHeaderFrame(const RealHttpReplyMessage *httpResponse, HttpNodeBase *pHttpNode);
+
+    public:
 
         HeaderFrame getRequest(string requestURI);
         HeaderFrame getResponse(string requestURI);
@@ -116,7 +54,6 @@ class HarParser : public cSimpleModule
 
     private:
         int ParseHarFiles(int n_files, char** files, vector<HeaderFrame>* requests, vector<HeaderFrame>* responses, vector<HeaderFrame>* timings);
-        void OutputHeaderFrame(const HeaderFrame& hf);
 
         static int ParseFile(const string& fn, vector<HeaderFrame>* requests, vector<HeaderFrame>* responses, vector<HeaderFrame>* timings);
         static int ParseStream(istream& istrm, vector<HeaderFrame>* requests, vector<HeaderFrame>* responses, vector<HeaderFrame>* timings);
@@ -134,7 +71,6 @@ class HarParser : public cSimpleModule
         HeaderMap responseMap;
         HeaderMap timingsMap;
 
-        int protocolType;
         string harInfoFile;          // har file info configuration file.
         TimeSetting_Type timeSettingType;
         int waitTime;

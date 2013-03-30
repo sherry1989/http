@@ -20,15 +20,14 @@
 #include "CPipeReqBase.h"
 #include "CSvrSupportDetectBase.h"
 #include "ProtocolTypeDef.h"
-#include "HttpResponseParser.h"
+#include "CMessageController.h"
 
 #include <omnetpp.h>
 
-//redefine PipeSockData as NSCSockData
+/** redefine PipeSockData as NSCSockData */
 struct NSCSockData :public PipeSockData
 {
-    HttpResponseParser *praser;
-    ZlibInfo zlib;
+      Socket_ID_Type sockID;
 };
 
 /**
@@ -41,24 +40,12 @@ class NSCHttpBrowser : public HttpBrowser
         NSCHttpBrowser();
         virtual ~NSCHttpBrowser();
 
-    protected:
-        /*
-         * record the http limit
-         */
-        unsigned int maxConnections;
-        unsigned int maxConnectionsPerHost;
-        unsigned int maxPipelinedReqs;
-
-        Pipelining_Mode_Type pipeliningMode;
-        SvrSupportDetect_Method_Type SvrSupportDetect;
-        Protocol_Type protocolType;
-
-        /**
-         * A list of active sockets for each server
-         */
-        typedef std::map<std::string, SocketSet> TCPSocketServerMap;
-
-        TCPSocketServerMap sockCollectionMap;    ///< List of active sockets for each server
+    public:
+        /** @name do statistics */
+        //@{
+        virtual void incRequestHarGenerated();
+        virtual void recordCompressStatistic(size_t framelen, size_t nvbuflen, size_t bodyLength);
+        //@}
 
     protected:
         /** @name cSimpleModule redefinitions */
@@ -68,6 +55,7 @@ class NSCHttpBrowser : public HttpBrowser
 
         /** Report final statistics */
         virtual void finish();
+        //@}
 
     protected:
         /** @name TCPSocket::CallbackInterface callback methods */
@@ -107,33 +95,7 @@ class NSCHttpBrowser : public HttpBrowser
          * @todo Implement reconnect if necessary. See the INET demos.
          */
         virtual void socketFailure(int connId, void *yourPtr, int code);
-
-        /** send HTTP reply message though TCPSocket depends on the TCP DataTransferMode*/
-        virtual void sendMessage(NSCSockData *sockdata, HttpRequestMessage *reply);
-
-        /*
-         * Format an application TCP_TRANSFER_BYTESTREAM Request message which can be sent though NSC TCP depence on the application layer protocol
-         * the protocol type can be HTTP \ SPDY \ HTTPS+M \ HTTPNF
-         */
-        std::string formatByteRequestMessage(NSCSockData *sockdata, HttpRequestMessage *httpRequest);
-
-        /** Format a Request message to HTTP Request Message Header */
-        virtual std::string formatHttpRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
-
-        /** Format a Request message to SPDY Header Block Request Message Header */
-        virtual std::string formatHeaderBlockRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
-
-        /** Deflate a HTTP Request message header using the Name-Value zlib dictionary */
-        virtual std::string formatSpdyZlibHttpRequestMessageHeader(NSCSockData *sockdata, const RealHttpRequestMessage *httpRequest);
-
-        /** Format a Request message header to zlib-deflated SPDY header block */
-        virtual std::string formatSpdyZlibHeaderBlockRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
-
-        /** Format a Request message to HTTPNF Request Message Header */
-        virtual std::string formatHttpNFRequestMessageHeader(const RealHttpRequestMessage *httpRequest);
-
-        /** Format a Name Value Pair */
-        std::string formatNameValuePair(const std::string name, const std::string value);
+        //@}
 
     protected:
         /** @name Socket establishment and data submission */
@@ -146,30 +108,77 @@ class NSCHttpBrowser : public HttpBrowser
         virtual void submitToSocket(const char* moduleName, int connectPort, HttpRequestQueue &queue);
         //@}
 
-        RealHttpRequestMessage *changeRequestToReal(HttpRequestMessage *httpRequest);
+    protected:
+        /**
+         * send HTTP reply message though TCPSocket depends on the TCP DataTransferMode
+         */
+        virtual void sendMessage(NSCSockData *sockdata, HttpRequestMessage *reply);
 
-        // Basic statistics
+    private:
+        /** select pipelining related strategies, pointer set to the configured derived classes */
+        void selectPipeStrategy();
+
+        /** set message factory depending on the message header encode type and compression type */
+        void setMessageFactory();
+
+
+    protected:
+        /**
+         * record the http limit
+         */
+        unsigned int maxConnections;
+        unsigned int maxConnectionsPerHost;
+        unsigned int maxPipelinedReqs;
+
+        /**
+         * record the configure informations
+         */
+        Pipelining_Mode_Type pipeliningMode;                            //Pipelining Request Distribution Algorithm
+        SvrSupportDetect_Method_Type SvrSupportDetect;                  //Pipelining Server Support Detection Algorithm
+        Header_Encode_Type headerEncodeType;                            //Message header encode type
+        Header_Compress_Type headerCompressType;                        //Message header compress type
+        Message_Info_Src messageInfoSrc;                                //Message information source
+
+        /**
+         * A list of active sockets for each server
+         */
+        typedef std::map<std::string, SocketSet> TCPSocketServerMap;
+
+        /**
+         * List of active sockets for each server
+         */
+        TCPSocketServerMap sockCollectionMap;
+
+        /**
+         * Basic statistics
+         */
         long responseMessageReceived;
         long responseParsed;
         long headerBytesBeforeDeflate;
         long headerBytesAfterDeflate;
         long totalBytesSent;
+        long requestSent;
+        long requestHarGenerated;
 
-        // Output Vectors
+        /**
+         * Output Vectors
+         */
         cOutVector recvResTimeVec;
         cOutVector sendReqTimeVec;
         cOutVector headerDeflateRatioVec;
         cOutVector totalDeflateRatioVec;
 
-        /*
-         * 指向各类策略基类的指针，用于调用不同的策略
-         */
     private:
+        /**
+         * Pointers to pipelining related strategies Base Classes
+         */
         CPipeReqBase *pPipeReq;
         CSvrSupportDetectBase *pSvrSupportDetect;
 
-        //策略选择，确定派生类
-        void chooseStrategy(Pipelining_Mode_Type pipeliningMode, SvrSupportDetect_Method_Type SvrSupportDetect);
+        /**
+         * Pointers to message factory
+         */
+        CMessageController *pMessageController;
 };
 
 #endif
