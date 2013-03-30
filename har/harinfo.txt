@@ -24,3 +24,4 @@ sina.com.cn.har
 
 #feixin_offline-file-receiver.har
 #feixin_offline-file-sender.har
+#ipad-appstore-fetion.har

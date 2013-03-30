@@ -8,6 +8,7 @@
     <datasets name="cli_response_stat">
       <items xsi:type="scave:Add" filterPattern="name(response.*)"/>
       <items xsi:type="scave:BarChart" name="cliResStat">
+        <properties name="Plot.Caching" value="false"/>
         <properties name="Plot.BackgroundColor" value="lavender"/>
         <properties name="Graph.Title" value="Client Response Statistics"/>
         <properties name="X.Axis.Title" value="pipelining mode"/>

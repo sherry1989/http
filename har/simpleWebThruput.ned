@@ -10,14 +10,14 @@ import inet.networklayer.autorouting.ipv4.IPv4NetworkConfigurator;
 import inet.nodes.inet.Router;
 import inet.nodes.inet.StandardHost;
 import inet.world.httptools.HttpController;
-import http.src.protocolUtils.HarParser;
+import http.src.protocolUtils.MessageInfoSrc.MsgInfoSrcBase;
+import http.src.protocolUtils.MessageInfoSrc.HarParser;
+import http.src.protocolUtils.MessageInfoSrc.SelfGen;
 import http.src.Browser.PipeHttpBrowser;
 import http.src.Browser.NSCHttpBrowser;
-import http.src.Browser.HarBrowser;
 import inet.applications.httptools.HttpBrowser;
 import http.src.Server.PipeHttpServer;
 import http.src.Server.NSCHttpServer;
-import http.src.Server.HarServer;
 import inet.applications.httptools.HttpServer;
 import inet.util.ThruputMeteringChannel;
 import inet.util.ThruputMeter;
@@ -76,9 +76,13 @@ network simpleWebThruput
         }
         harParser: HarParser {
             parameters:
-                @display("p=41,46;i=block/cogwheel");
+                @display("p=214,46;i=block/cogwheel");
         }
-        
+        selfGen: SelfGen {
+            parameters:
+                @display("p=88,46;i=block/cogwheel");
+        }
+
         router: Router {
             parameters:
                 @display("p=508,226;i=abstract/router_l");
