@@ -294,6 +294,26 @@ HeaderFrame HarParser::getResHeaderFrame(const RealHttpReplyMessage *httpRespons
         EV_ERROR << "responseFrame size is 0, call MsgInfoSrcBase::getResHeaderFrame to generate header frame." << endl;
         return MsgInfoSrcBase::getResHeaderFrame(httpResponse, pHttpNode);
     }
+    /**
+     * if there's no content length in har files
+     * should add the header line, and set the content-length 0
+     */
+    unsigned int i;
+    for (i = 0; i < responseFrame.size(); ++i)
+    {
+        // find content-length and don't do anything
+        if (responseFrame[i].key.find("Content-Length") != string::npos)
+        {
+            break;
+        }
+    }
+    if (i == responseFrame.size())
+    {
+        //add a header of content-length, and set length 0
+        responseFrame.push_back(makeKVPair("Content-Length", "0"));
+        EV_DEBUG << "Har file no not have content-length. Generate HTTP Content-Length: " << httpResponse->contentLength() << endl;
+    }
+
     EV_DEBUG << "responseFrame size is: " << responseFrame.size() << endl;
 
     return responseFrame;
