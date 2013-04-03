@@ -54,38 +54,32 @@ CMessageController::~CMessageController()
 std::string CMessageController::generateRequestMessage(HttpRequestMessage *httpRequest, Socket_ID_Type sockID)
 {
     /**
-     * 0. change message from httpRequest to realHttpRequest
+     * 1. get request-URI from request message
+     */
+    std::string requestURI = getRequestUri(httpRequest);
+
+    /**
+     * 2. change message from httpRequest to realHttpRequest
      */
     RealHttpRequestMessage *realHttpRequest = changeRequestToReal(httpRequest);
 
     /**
-     * 1. get header frame from the setting message information source
+     * 3. get header frame from the setting message information source
      */
     HeaderFrame requestFrame = pMsgInfoSrc->getReqHeaderFrame(realHttpRequest, pHttpNode);
 
     /**
-     * 2. get request-URI from request string
+     * 4. get the encoded message header from the setting message encoder
      */
-    // Parse the request string on spaces
-    cStringTokenizer tokenizer = cStringTokenizer(realHttpRequest->heading(), " ");
-    std::vector < std::string > res = tokenizer.asVector();
-    if (res.size() != 3)
-    {
-        EV_ERROR_NOMODULE << "Invalid request string: " << realHttpRequest->heading() << endl;
-    }
+    std::string reqHeader = pEncoder->generateReqMsgHeader(requestFrame, requestURI);
 
     /**
-     * 3. get the encoded message header from the setting message encoder
-     */
-    std::string reqHeader = pEncoder->generateReqMsgHeader(requestFrame, res[1]);
-
-    /**
-     * 4. compress the encoded message header
+     * 5. compress the encoded message header
      */
     std::string reqMsg = pCompressor->compressMsgHeader(reqHeader, sockID, pHttpNode, strlen(realHttpRequest->payload()));
 
     /**
-     * 5. add request message body
+     * 6. add request message body
      */
     reqMsg.append(realHttpRequest->payload());
 
@@ -183,6 +177,8 @@ std::string CMessageController::generateResponseMessage(HttpReplyMessage *httpRe
      */
     std::string resMsg = pCompressor->compressMsgHeader(resHeader, sockID, pHttpNode, strlen(realhttpResponse->payload()));
 
+    EV_DEBUG_NOMODULE << "Response Header length is: "<< resMsg.size() << endl;
+
     /**
      * 5. add request message body
      */
@@ -248,7 +244,7 @@ RealHttpReplyMessage *CMessageController::praseResponseMessage(cPacket *msg, Soc
 //    buf[bufLength] = '\0';
 
     EV_DEBUG_NOMODULE << "HTTP Response to decompress ByteLength is:" << bufLength << endl;
-//    EV_DEBUG_NOMODULE << "HTTP Response to decompress ByteArray is:" << buf << endl;
+    EV_DEBUG_NOMODULE << "HTTP Response to decompress ByteArray is:" << buf << endl;
 
     /**
      * 2. decompress the message header
@@ -265,6 +261,12 @@ RealHttpReplyMessage *CMessageController::praseResponseMessage(cPacket *msg, Soc
     delete[] buf;
     delete msg;
     return httpResponse;
+}
+
+/** try to deal with the rest bytes */
+RealHttpReplyMessage *CMessageController::dealWithRestBytes(Socket_ID_Type sockID)
+{
+    return pEncoder->dealWithRestBytes(sockID);
 }
 
 Socket_ID_Type CMessageController::getNewSockID()
@@ -288,6 +290,11 @@ void CMessageController::releaseSockID(Socket_ID_Type sockID)
 HeaderFrame CMessageController::getTimingFromHar(string requestURI)
 {
     return dynamic_cast<HarParser*>(pMsgInfoSrc)->getTiming(requestURI);
+}
+
+HeaderFrame CMessageController::getResponseFromHar(string requestURI)
+{
+    return dynamic_cast<HarParser*>(pMsgInfoSrc)->getResponse(requestURI);
 }
 
 RealHttpRequestMessage *CMessageController::changeRequestToReal(HttpRequestMessage *httpRequest)
@@ -360,4 +367,20 @@ RealHttpReplyMessage *CMessageController::changeReplyToReal(HttpReplyMessage *ht
     httpResponse = NULL;
 
     return realhttpResponse;
+}
+
+/**
+ * get request-URI from request string of requestMessage
+ */
+std::string CMessageController::getRequestUri(HttpRequestMessage *httpRequest)
+{
+    // Parse the request string on spaces
+    cStringTokenizer tokenizer = cStringTokenizer(httpRequest->heading(), " ");
+    std::vector < std::string > res = tokenizer.asVector();
+    if (res.size() != 3)
+    {
+        EV_ERROR_NOMODULE << "Invalid request string: " << httpRequest->heading() << endl;
+    }
+
+    return res[1];
 }

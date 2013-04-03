@@ -36,13 +36,23 @@ class CMessageController
         /** Parse a received byte message to a RealHttpReplyMessage */
         RealHttpReplyMessage* praseResponseMessage(cPacket *msg, Socket_ID_Type sockID);
 
+        /** try to deal with the rest bytes */
+        RealHttpReplyMessage *dealWithRestBytes(Socket_ID_Type sockID);
+
         /** assign a new sockID and assign related things to the sockID */
         Socket_ID_Type getNewSockID();
 
         /** Release related thing assigned to the sockID */
         void releaseSockID(Socket_ID_Type sockID);
 
+        /** get request-URI from request string of requestMessage */
+        std::string getRequestUri(HttpRequestMessage *httpRequest);
+
+        /** get the timings info from har file based on the request URI */
         HeaderFrame getTimingFromHar(string requestURI);
+
+        /** get the response info from har file based on the request URI */
+        HeaderFrame getResponseFromHar(string requestURI);
 
         RealHttpRequestMessage *changeRequestToReal(HttpRequestMessage *httpRequest);
         RealHttpReplyMessage *changeReplyToReal(HttpReplyMessage *httpResponse);
