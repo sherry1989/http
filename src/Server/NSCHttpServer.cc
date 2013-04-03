@@ -112,6 +112,7 @@ void NSCHttpServer::initialize()
     totalBytesSent = 0;
     headerBytesBeforeDeflate = headerBytesAfterDeflate = 0;
     mediaResourcesServed = otherResourcesServed = 0;
+    responseSent = 0;
 
     // Initialize watches
     WATCH(numBroken);
@@ -121,6 +122,7 @@ void NSCHttpServer::initialize()
     WATCH(headerBytesAfterDeflate);
     WATCH(mediaResourcesServed);
     WATCH(otherResourcesServed);
+    WATCH(responseSent);
 
     // Initialize cOutputVectors
     recvReqTimeVec.setName("Receive Request SimTime");
@@ -139,6 +141,7 @@ void NSCHttpServer::finish()
     EV_SUMMARY << "Bytes After Deflate: " << headerBytesAfterDeflate << endl;
     EV_SUMMARY << "Media resources served " << mediaResourcesServed << "\n";
     EV_SUMMARY << "Other resources served " << otherResourcesServed << "\n";
+    EV_SUMMARY << "Response sent: " << responseSent << endl;
 
     // Record the sockets related statistics
     recordScalar("bytes.totalBytesSent", totalBytesSent);
@@ -146,6 +149,7 @@ void NSCHttpServer::finish()
     recordScalar("bytes.AfterDeflate", headerBytesAfterDeflate);
     recordScalar("media.served", mediaResourcesServed);
     recordScalar("other.served", otherResourcesServed);
+    recordScalar("response.sent", responseSent);
 }
 
 std::string NSCHttpServer::generateBody()
@@ -282,7 +286,7 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
             }
             else
             {
-                // use the request-uri to get the real har response
+                // use the request-uri to get the real har response's timings
                 HeaderFrame timings = pMessageController->getTimingFromHar(httpResponse->requestURI());
 
                 if (timings.size() == 0)
@@ -625,15 +629,18 @@ void NSCHttpServer::sendMessage(TCPSocket *socket, HttpReplyMessage *reply)
 
 //            delete[] ptr;
 
-            EV_DEBUG << "Send ByteArray. SendBytes are" << resByteArray << ". " << endl;
+            // doing statistics
+            sendResTimeVec.record(simTime());
+            totalBytesSent += sendBytes;
+            responseSent++;
+
+            EV_DEBUG << "Send ByteArray No. "<< responseSent << ". resByteArray are" << resByteArray  << endl;
+//            EV_DEBUG << "Send ByteArray. byMsg->getByteArray() is" << byMsg->getByteArray() << endl;
             EV_DEBUG << "Send ByteArray. Bytelength is" << sendBytes << ". " << endl;
 
             sendMsg = dynamic_cast<cMessage*>(byMsg);
             socket->send(sendMsg);
 
-            // doing statistics
-            sendResTimeVec.record(simTime());
-            totalBytesSent += sendBytes;
 
             break;
         }

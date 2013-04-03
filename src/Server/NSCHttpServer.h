@@ -138,7 +138,7 @@ class NSCHttpServer : public HttpServer
 //        RealHttpReplyMessage *changeReplyToReal(HttpReplyMessage *httpResponse);
 
         /**
-         * A list of deflater or inflater for each socket
+         * A list of sockData ID for each socket
          */
         typedef std::map<TCPSocket *, Socket_ID_Type> TCPSocket_ID_Map;
 
@@ -159,6 +159,7 @@ class NSCHttpServer : public HttpServer
         long totalBytesSent;
         long mediaResourcesServed;
         long otherResourcesServed;
+        long responseSent;
 
         /**
          * Output Vectors
