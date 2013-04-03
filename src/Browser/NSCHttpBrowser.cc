@@ -45,14 +45,9 @@
 
 Define_Module(NSCHttpBrowser);
 
-NSCHttpBrowser::NSCHttpBrowser()
-    :maxConnections(0),
-     maxConnectionsPerHost(0),
-     maxPipelinedReqs(0),
-     pipeliningMode(0),
-     SvrSupportDetect(0),
-     pPipeReq(NULL),
-     pSvrSupportDetect(NULL)
+NSCHttpBrowser::NSCHttpBrowser() :
+        maxConnections(0), maxConnectionsPerHost(0), maxPipelinedReqs(0), pipeliningMode(0), SvrSupportDetect(0), pPipeReq(
+                NULL), pSvrSupportDetect(NULL)
 {
 
 }
@@ -164,7 +159,6 @@ void NSCHttpBrowser::finish()
     EV_SUMMARY << "Request sent: " << requestSent << endl;
     EV_SUMMARY << "Request har generated: " << requestHarGenerated << endl;
 
-
     // Record the sockets related statistics
     recordScalar("response.messageRec", responseMessageReceived);
     recordScalar("response.parsed", responseParsed);
@@ -242,19 +236,75 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
     responseMessageReceived++;
 
     NSCSockData *sockdata = (NSCSockData*) yourPtr;
-    TCPSocket *socket = sockdata->socket;
 
     cPacket *parsedMsg = pMessageController->praseResponseMessage(msg, sockdata->sockID);
 
-    /*
+    parseResponseMessage(connId, sockdata, parsedMsg);
+}
+
+/** parse a parsed response message */
+void NSCHttpBrowser::parseResponseMessage(int connId, NSCSockData *sockdata, cPacket *parsedMsg)
+{
+    TCPSocket *socket = sockdata->socket;
+    Socket_ID_Type sockID = sockdata->sockID;
+    /**
      * check if this response message is complete
-     *      if it's a complete message, handle it
+     *      if it's a complete message, handle it and try to deal with the rest bytes may remained unparsed
      *      else, wait for the coming messages contain the else message body, do nothing
      */
     if (parsedMsg != NULL)
     {
         responseParsed++;
         EV_DEBUG << "response to parse is No. " << responseParsed << endl;
+
+        /**
+         * if infos get from har file
+         * check the response message based on the recorded request URI
+         */
+        if (messageInfoSrc == HAR_FILE)
+        {
+            std::string requestURI = reqListPerSocket[socket].front();
+            reqListPerSocket[socket].pop_front();
+            HeaderFrame harResponse = pMessageController->getResponseFromHar(requestURI);
+
+            if (harResponse.size() == 0)
+            {
+                EV_ERROR << "can not get response for " << requestURI << endl;
+            }
+            else
+            {
+                unsigned int i;
+                for (i = 0; i < harResponse.size(); ++i)
+                {
+                    //---Note: here should cmp ":status-text" before ":status", or ":status" may get ":status-text" value
+                    if (harResponse[i].key.find("Content-Length") != string::npos
+                            || harResponse[i].key.find("content-length") != string::npos)
+                    {
+                        int64 harContentLength = (int64)(atoi(harResponse[i].val.c_str()));
+
+                        int64 recivedContentLength = check_and_cast<HttpReplyMessage*>(parsedMsg)->getByteLength();
+
+                        if (harContentLength == recivedContentLength)
+                        {
+                            EV_DEBUG << "parsed response No. " << responseParsed << " is the one recorded in har file."
+                                    << endl;
+                        }
+                        else
+                        {
+                            throw cRuntimeError(
+                                    "[In NSCHttpBrowser] parsed response is not the one recorded in har file ! "
+                                    "recivedContentLength is %lld, while the harContentLength is %lld",
+                                    recivedContentLength, harContentLength);
+                        }
+                        break;
+                    }
+                }
+                if (i == harResponse.size())
+                {
+                    EV_ERROR << "can not get response's Content-Length for " << requestURI << endl;
+                }
+            }
+        }
 
         HttpContentType contentType = CT_UNKNOWN;
         contentType = pSvrSupportDetect->setSvrSupportForSock(sockdata, parsedMsg);
@@ -346,11 +396,24 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
         }
 
         // Message deleted in handler - do not delete here!
+
+        /**
+         * since there may be some remaining bytes unparsed, should try to deal with them
+         */
+        dealWithRestBytes(connId, sockdata);
     }
     else
     {
         EV_DEBUG << "Need to wait for the following msgs" << endl;
     }
+}
+
+/** try to deal with the rest bytes */
+void NSCHttpBrowser::dealWithRestBytes(int connId, NSCSockData *sockdata)
+{
+    cPacket *parsedMsg = pMessageController->dealWithRestBytes(sockdata->sockID);
+
+    parseResponseMessage(connId, sockdata, parsedMsg);
 }
 
 void NSCHttpBrowser::socketPeerClosed(int connId, void *yourPtr)
@@ -560,6 +623,13 @@ void NSCHttpBrowser::sendMessage(NSCSockData *sockdata, HttpRequestMessage *req)
         {
             ByteArrayMessage *byMsg = new ByteArrayMessage(req->getName());
 
+            /**
+             * record request-URI in this socket's requestURIList
+             * for response check
+             */
+            std::string requestURI = pMessageController->getRequestUri(req);
+            reqListPerSocket[socket].push_back(requestURI);
+
 //            std::string resByteArray = formatByteRequestMessage(sockdata, req);
             std::string resByteArray = pMessageController->generateRequestMessage(req, sockdata->sockID);
 
@@ -573,17 +643,17 @@ void NSCHttpBrowser::sendMessage(NSCSockData *sockdata, HttpRequestMessage *req)
 
 //            delete[] ptr;
 
-            EV_DEBUG << "Send ByteArray. MessageName is: " << byMsg->getName() << ". " << endl;
+            // doing statistics
+            sendReqTimeVec.record(simTime());
+            totalBytesSent += sendBytes;
+            requestSent++;
+
+            EV_DEBUG << "Send ByteArray NO. "<< requestSent << ".  MessageName is: " << byMsg->getName() << ". " << endl;
             EV_DEBUG << "Send ByteArray. SendBytes are: " << resByteArray << ". " << endl;
             EV_DEBUG << "Send ByteArray. Bytelength is: " << sendBytes << ". " << endl;
 
             sendMsg = dynamic_cast<cMessage*>(byMsg);
             socket->send(sendMsg);
-
-            // doing statistics
-            sendReqTimeVec.record(simTime());
-            totalBytesSent += sendBytes;
-            requestSent++;
 
             break;
         }
@@ -673,7 +743,8 @@ void NSCHttpBrowser::setMessageFactory()
         }
         default:
         {
-            throw std::runtime_error("[In NSCHttpBrowser] Browser get unrecognizable header encode type, can not work!");
+            throw std::runtime_error(
+                    "[In NSCHttpBrowser] Browser get unrecognizable header encode type, can not work!");
         }
     }
 
@@ -734,7 +805,8 @@ void NSCHttpBrowser::setMessageFactory()
         }
         default:
         {
-            throw std::runtime_error("[In NSCHttpBrowser] Browser get unrecognizable header encode type, can not work!");
+            throw std::runtime_error(
+                    "[In NSCHttpBrowser] Browser get unrecognizable header encode type, can not work!");
         }
     }
 

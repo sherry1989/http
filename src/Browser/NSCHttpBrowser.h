@@ -22,6 +22,8 @@
 #include "ProtocolTypeDef.h"
 #include "CMessageController.h"
 
+#include <list>
+
 #include <omnetpp.h>
 
 /** redefine PipeSockData as NSCSockData */
@@ -114,6 +116,16 @@ class NSCHttpBrowser : public HttpBrowser
          */
         virtual void sendMessage(NSCSockData *sockdata, HttpRequestMessage *reply);
 
+        /**
+         * parse a parsed response message, check if this response message is complete
+         *      if it's a complete message, handle it and try to deal with the rest bytes may remained unparsed
+         *      else, wait for the coming messages contain the else message body, do nothing
+         */
+        void parseResponseMessage(int connId, NSCSockData *sockdata, cPacket *parsedMsg);
+
+        /** try to deal with the rest bytes */
+        void dealWithRestBytes(int connId, NSCSockData *sockdata);
+
     private:
         /** select pipelining related strategies, pointer set to the configured derived classes */
         void selectPipeStrategy();
@@ -143,10 +155,6 @@ class NSCHttpBrowser : public HttpBrowser
          * A list of active sockets for each server
          */
         typedef std::map<std::string, SocketSet> TCPSocketServerMap;
-
-        /**
-         * List of active sockets for each server
-         */
         TCPSocketServerMap sockCollectionMap;
 
         /**
@@ -179,6 +187,15 @@ class NSCHttpBrowser : public HttpBrowser
          * Pointers to message factory
          */
         CMessageController *pMessageController;
+
+        /**
+         * A list of request URI for each socket:
+         *      when send request message, push the request URI to the tail of the socket's list
+         *      when receive response message, pop the request URI from the head of the socket's list
+         */
+        typedef std::list<std::string> ReqUriList;
+        typedef std::map<TCPSocket *, ReqUriList> TCPSocket_ReqUriList_Map;
+        TCPSocket_ReqUriList_Map reqListPerSocket;
 };
 
 #endif
