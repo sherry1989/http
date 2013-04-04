@@ -18,18 +18,17 @@
 
 namespace RequestParser
 {
-    static http_parser_settings parserCallback=
-    {
-        message_begin_cb,           //http_cb      on_message_begin;
-        request_url_cb,             //http_data_cb on_url;   //request only
-        header_field_cb,            //http_data_cb on_header_field;
-        header_value_cb,            //http_data_cb on_header_value;
-        headers_complete_cb,        //http_cb      on_headers_complete;
-        body_cb,                    //http_data_cb on_body;
-        message_complete_cb         //http_cb      on_message_complete;
-    };
+    static http_parser_settings parserCallback =
+    { message_begin_cb,           //http_cb      on_message_begin;
+      request_url_cb,             //http_data_cb on_url;   //request only
+      header_field_cb,            //http_data_cb on_header_field;
+      header_value_cb,            //http_data_cb on_header_value;
+      headers_complete_cb,        //http_cb      on_headers_complete;
+      body_cb,                    //http_data_cb on_body;
+      message_complete_cb         //http_cb      on_message_complete;
+            };
 
-    int request_url_cb (http_parser *htp, const char *buf, size_t len)
+    int request_url_cb(http_parser *htp, const char *buf, size_t len)
     {
         HttpRequestParser *parser;
         parser = reinterpret_cast<HttpRequestParser*>(htp->data);
@@ -37,7 +36,7 @@ namespace RequestParser
         /*
          * set Request-Line of this http request message
          */
-        char szReq[MAX_URL_LENGTH+24];
+        char szReq[MAX_URL_LENGTH + 24];
         sprintf(szReq, "GET %.*s HTTP/1.1", len, buf);
         parser->httpRequest->setHeading(szReq);
 
@@ -116,7 +115,7 @@ namespace RequestParser
         std::string targetUrl;
         targetUrl.assign(parser->get_message_header("Host"));
         parser->httpRequest->setTargetUrl(targetUrl.c_str());
-        EV_DEBUG_NOMODULE << "Set targetUrl from Host: "<< parser->httpRequest->targetUrl() << "\r\n";
+        EV_DEBUG_NOMODULE << "Set targetUrl from Host: " << parser->httpRequest->targetUrl() << "\r\n";
 
         parser->httpRequest->setBadRequest(false);
         return 0;
@@ -124,8 +123,8 @@ namespace RequestParser
 
     int message_complete_cb(http_parser *htp)
     {
-    //    HttpRequestParser *parser;
-    //    parser = reinterpret_cast<HttpRequestParser*>(htp->data);
+        //    HttpRequestParser *parser;
+        //    parser = reinterpret_cast<HttpRequestParser*>(htp->data);
 
         return 0;
     }
@@ -133,16 +132,15 @@ namespace RequestParser
 
 namespace ResponseParser
 {
-    static http_parser_settings parserCallback=
-    {
-        message_begin_cb,           //http_cb      on_message_begin;
-        0,                          //http_data_cb on_url;*//*request only
-        header_field_cb,            //http_data_cb on_header_field;
-        header_value_cb,            //http_data_cb on_header_value;
-        headers_complete_cb,        //http_cb      on_headers_complete;
-        body_cb,                    //http_data_cb on_body;
-        message_complete_cb         //http_cb      on_message_complete;
-    };
+    static http_parser_settings parserCallback =
+    { message_begin_cb,           //http_cb      on_message_begin;
+      0,                          //http_data_cb on_url;*//*request only
+      header_field_cb,            //http_data_cb on_header_field;
+      header_value_cb,            //http_data_cb on_header_value;
+      headers_complete_cb,        //http_cb      on_headers_complete;
+      body_cb,                    //http_data_cb on_body;
+      message_complete_cb         //http_cb      on_message_complete;
+            };
 
     int header_field_cb(http_parser *htp, const char *buf, size_t len)
     {
@@ -183,23 +181,28 @@ namespace ResponseParser
         HttpResponseParser *parser;
         parser = reinterpret_cast<HttpResponseParser*>(htp->data);
 
-        std::string payload;
-        if (len != 0)
+        if (!parser->getMsgParseFin())
         {
-            payload.assign(buf, len);
+            std::string payload;
+            if (len != 0)
+            {
+                payload.assign(buf, len);
+            }
+            parser->httpResponse->setPayload(payload.c_str());
+    //        parser->httpResponse->setPayload(buf);
+            parser->set_recv_body_length(len);
+
+            EV_DEBUG_NOMODULE << "payload is:" << parser->httpResponse->payload() << endl;
+            EV_DEBUG_NOMODULE << "payload strlen is:" << strlen(parser->httpResponse->payload()) << endl;
+            EV_DEBUG_NOMODULE << "buffer len is :" << len << endl;
+            EV_DEBUG_NOMODULE << "httpResponse bytelength is: " << parser->httpResponse->getByteLength() << endl;
+
+            parser->setMsgParseFin(true);
+
+    //        parser->httpResponse->setPayload(buf);
+    //        parser->httpResponse->setContentLength(len);
+    //        parser->httpResponse->setByteLength(len);
         }
-        parser->httpResponse->setPayload(payload.c_str());
-//        parser->httpResponse->setPayload(buf);
-        parser->set_recv_body_length(len);
-
-        EV_DEBUG_NOMODULE << "payload is:" << parser->httpResponse->payload() << endl;
-        EV_DEBUG_NOMODULE << "payload strlen is:" << strlen(parser->httpResponse->payload()) << endl;
-        EV_DEBUG_NOMODULE << "buffer len is :" << len << endl;
-        EV_DEBUG_NOMODULE << "httpResponse bytelength is: " << parser->httpResponse->getByteLength() << endl;
-
-//        parser->httpResponse->setPayload(buf);
-//        parser->httpResponse->setContentLength(len);
-//        parser->httpResponse->setByteLength(len);
         return 0;
     }
 
@@ -225,7 +228,7 @@ namespace ResponseParser
         parser->httpResponse->setKeepAlive(http_should_keep_alive(htp));
         parser->set_message_state(parser->HEADER_COMPLETE);
 
-        EV_DEBUG_NOMODULE << "Parsing HTTP Response Status code is:"<< parser->httpResponse->result() << endl;
+        EV_DEBUG_NOMODULE << "Parsing HTTP Response Status code is:" << parser->httpResponse->result() << endl;
 
         /*
          * set contentType of this http response message
@@ -243,14 +246,15 @@ namespace ResponseParser
             {
                 parser->httpResponse->setContentType(CT_IMAGE);
             }
-            else if (contentType.find("text") != std::string::npos || contentType.find("javascript") != std::string::npos
+            else if (contentType.find("text") != std::string::npos
+                    || contentType.find("javascript") != std::string::npos
                     || contentType.find("xml") != std::string::npos)
             {
                 parser->httpResponse->setContentType(CT_TEXT);
             }
             //----Note: since javascript and xml type has application token, should do text statistic before media
-            else if (contentType.find("application") != std::string::npos || contentType.find("audio") != std::string::npos
-                    || contentType.find("video") != std::string::npos)
+            else if (contentType.find("application") != std::string::npos
+                    || contentType.find("audio") != std::string::npos || contentType.find("video") != std::string::npos)
             {
                 parser->httpResponse->setContentType(CT_UNKNOWN);
             }
@@ -278,7 +282,8 @@ namespace ResponseParser
             std::string contentLength;
             contentLength.assign(parser->get_message_header("Content-Length"));
             parser->httpResponse->setByteLength(atol(contentLength.c_str()));
-            EV_DEBUG_NOMODULE << "Parsing HTTP Response Content-Length is:"<< parser->httpResponse->getByteLength() << endl;
+            EV_DEBUG_NOMODULE << "Parsing HTTP Response Content-Length is:" << parser->httpResponse->getByteLength()
+                    << endl;
         }
 
         unsigned int status = parser->httpResponse->result();
@@ -296,14 +301,14 @@ namespace ResponseParser
         // 304 status code with nonzero Content-Length, but without response
         // body. See
         // http://tools.ietf.org/html/draft-ietf-httpbis-p1-messaging-20#section-3.3
-        return /*get_message_method() == "HEAD" ||*/ (100 <= status && status <= 199) || status == 204
-                || status == 304 ? 1 : 0;
+        return /*get_message_method() == "HEAD" ||*/
+        (100 <= status && status <= 199) || status == 204 || status == 304 ? 1 : 0;
     }
 
     int message_complete_cb(http_parser *htp)
     {
-    //    HttpResponseParser *parser;
-    //    parser = reinterpret_cast<HttpResponseParser*>(htp->data);
+        //    HttpResponseParser *parser;
+        //    parser = reinterpret_cast<HttpResponseParser*>(htp->data);
 
         return 0;
     }
@@ -312,14 +317,9 @@ namespace ResponseParser
 bool HttpResponseParser::nextHeaderSticked = false;
 std::string HttpResponseParser::nextHeader;
 
-CHttpParser::CHttpParser()
-    :message_state_(INITIAL),
-     message_major_(1),
-     message_minor_(1),
-     chunked_message_(false),
-     message_header_key_prev_(false),
-     recv_window_size_(0),
-     recv_body_length(0)
+CHttpParser::CHttpParser() :
+        message_state_(INITIAL), message_major_(1), message_minor_(1), chunked_message_(false), message_header_key_prev_(
+                false), recv_window_size_(0), recv_body_length(0)
 {
     // TODO Auto-generated constructor stub
     
@@ -330,9 +330,8 @@ CHttpParser::~CHttpParser()
     // TODO Auto-generated destructor stub
 }
 
-HttpRequestParser::HttpRequestParser()
-    :httpRequest(new RealHttpRequestMessage()),
-     pRequestParser(new http_parser())
+HttpRequestParser::HttpRequestParser() :
+        httpRequest(new RealHttpRequestMessage()), pRequestParser(new http_parser())
 {
     // TODO Auto-generated constructor stub
     http_parser_init(pRequestParser, HTTP_REQUEST);
@@ -346,9 +345,8 @@ HttpRequestParser::~HttpRequestParser()
     pRequestParser = NULL;
 }
 
-HttpResponseParser::HttpResponseParser()
-    :httpResponse(new RealHttpReplyMessage()),
-     pResponseParser(new http_parser())
+HttpResponseParser::HttpResponseParser() :
+        httpResponse(new RealHttpReplyMessage()), pResponseParser(new http_parser()), msgParseFin(false)
 {
     // TODO Auto-generated constructor stub
     http_parser_init(pResponseParser, HTTP_RESPONSE);
@@ -389,26 +387,38 @@ RealHttpReplyMessage* HttpResponseParser::parseResMsg(char *buf, size_t bufLengt
     /*
      * when deflate http header, use "\r\n\r\n" is not captable, use response state to decide whether finish parsing http header is better
      */
-            /*
-             * check if this response message contains message header
-             *      if it contains message header, it's a start of response message, then try to parse it and check if it's a complete message
-             *          if it's a complete message, return the httpResponse object
-             *          else, wait for the coming messages contain the else message body
-             *      else, it's a message contains the else message body of the message received earlier
-             */
-        //    if (strstr(buf, "\r\n\r\n") != NULL)
+    /*
+     * check if this response message contains message header
+     *      if it contains message header, it's a start of response message, then try to parse it and check if it's a complete message
+     *          if it's a complete message, return the httpResponse object
+     *          else, wait for the coming messages contain the else message body
+     *      else, it's a message contains the else message body of the message received earlier
+     */
+    //    if (strstr(buf, "\r\n\r\n") != NULL)
     if (get_message_state() != HEADER_COMPLETE)
     {
-        EV_DEBUG_NOMODULE << "Start parse a new http response. message name is " << msg->getName() << endl;
-        httpResponse->setName(msg->getName());
-        httpResponse->setSentFrom(msg->getSenderModule(), msg->getSenderGateId(), msg->getSendingTime());
+        if (msg != NULL)
+        {
+            EV_DEBUG_NOMODULE << "Start parse a new http response. message name is " << msg->getName() << endl;
+            EV_DEBUG_NOMODULE << "income bytes before parse ByteLength is:" << bufLength << endl;
+            EV_DEBUG_NOMODULE << "income bytes before parse ByteArray is:" << buf << endl;
+            httpResponse->setName(msg->getName());
+            httpResponse->setSentFrom(msg->getSenderModule(), msg->getSenderGateId(), msg->getSendingTime());
+        }
+        else
+        {
+            EV_DEBUG_NOMODULE << "Start to parse the rest bytes" << endl;
+        }
 
         EV_DEBUG_NOMODULE << "nextHeaderSticked before if is " << nextHeaderSticked << endl;
         if (nextHeaderSticked)
         {
             char *newBuf = new char[nextHeader.length() + bufLength];
             memcpy(newBuf, nextHeader.c_str(), nextHeader.length());
-            memcpy(newBuf+nextHeader.length(), buf, bufLength);
+            if (buf != NULL)
+            {
+                memcpy(newBuf + nextHeader.length(), buf, bufLength);
+            }
 //            delete[] buf;
             buf = newBuf;
             bufLength += nextHeader.length();
@@ -416,10 +426,35 @@ RealHttpReplyMessage* HttpResponseParser::parseResMsg(char *buf, size_t bufLengt
             EV_DEBUG_NOMODULE << "nextHeaderSticked is set to " << nextHeaderSticked << endl;
 
             EV_DEBUG_NOMODULE << "HTTP Response after deal to parse ByteLength is:" << bufLength << endl;
-//            EV_DEBUG_NOMODULE << "HTTP Response after deal to parse ByteArray is:" << buf << endl;
+            EV_DEBUG_NOMODULE << "HTTP Response after deal to parse ByteArray is:" << buf << endl;
         }
 
-        http_parser_execute(pResponseParser, &ResponseParser::parserCallback, const_cast<const char*>(buf), bufLength);
+        size_t parseResult = http_parser_execute(pResponseParser, &ResponseParser::parserCallback, const_cast<const char*>(buf), bufLength);
+        EV_DEBUG_NOMODULE << "parseResult is:" << parseResult << endl;
+
+        if (get_message_state() != HEADER_COMPLETE)
+        {
+            EV_DEBUG_NOMODULE << "HTTP Response not complete! " << endl;
+
+            /**
+             * restore the unparsed bytes in nextHeader and set nextHeaderSticked to true to wait next time's parsing
+             */
+            if (nextHeader.size() != 0)
+            {
+                EV_DEBUG_NOMODULE << "The unparsed bytes should restore to nextHeader." << endl;
+                nextHeaderSticked = true;
+                EV_DEBUG_NOMODULE << "nextHeaderSticked is set to " << nextHeaderSticked << endl;
+                EV_DEBUG_NOMODULE << "nextHeader is: " << nextHeader << endl;
+            }
+
+            return NULL;
+        }
+        else
+        {
+            nextHeader.clear();
+            nextHeaderSticked = false;
+            EV_DEBUG_NOMODULE << "nextHeaderSticked is set to " << nextHeaderSticked << endl;
+        }
 
         http_errno htperr = HTTP_PARSER_ERRNO(pResponseParser);
         if (htperr == HPE_OK)
@@ -430,6 +465,53 @@ RealHttpReplyMessage* HttpResponseParser::parseResMsg(char *buf, size_t bufLengt
         {
             EV_ERROR_NOMODULE << "HTTP response parser failure: " << "(" << http_errno_name(htperr) << ") "
                     << http_errno_description(htperr) << endl;
+
+            if (HPE_INVALID_CHUNK_SIZE == htperr)
+            {
+                EV_DEBUG_NOMODULE << "The rest bytes should restore to nextHeader." << endl;
+                nextHeaderSticked = true;
+                EV_DEBUG_NOMODULE << "nextHeaderSticked is set to " << nextHeaderSticked << endl;
+                std::string totalData;
+                totalData.assign(buf, bufLength);
+                nextHeader.assign(totalData.substr(parseResult));
+                EV_DEBUG_NOMODULE << "nextHeader is: " << nextHeader << endl;
+                recv_body_length = 0;
+                return httpResponse;
+            }
+        }
+
+        EV_DEBUG_NOMODULE << "income bytes after parse ByteLength is:" << bufLength << endl;
+        EV_DEBUG_NOMODULE << "income bytes after parse ByteArray is:" << buf << endl;
+
+        if (httpResponse->getByteLength() == recv_body_length)
+        {
+            if (0 == recv_body_length)
+            {
+                nextHeader.clear();
+                nextHeaderSticked = false;
+                EV_DEBUG_NOMODULE << "nextHeaderSticked is set to " << nextHeaderSticked << endl;
+                return httpResponse;
+            }
+
+            std::string totalData;
+            totalData.assign(buf, bufLength);
+            size_t startOfPayload = totalData.find(httpResponse->payload(), 0, recv_body_length);
+            if (startOfPayload != std::string::npos)
+            {
+                size_t resTotalLength = startOfPayload + recv_body_length;
+                if (resTotalLength < bufLength)
+                {
+                    EV_DEBUG_NOMODULE << "income bytes not complete parsed, parsed length is " << resTotalLength << endl;
+                    nextHeaderSticked = true;
+                    EV_DEBUG_NOMODULE << "nextHeaderSticked is set to " << nextHeaderSticked << endl;
+                    nextHeader.assign(totalData.substr(resTotalLength));
+                    EV_DEBUG_NOMODULE << "nextHeader is: " << nextHeader << endl;
+                    EV_DEBUG_NOMODULE << "nextHeader length is: " << nextHeader.size() << endl;
+
+                    recv_body_length = 0;
+                    return httpResponse;
+                }
+            }
         }
     }
     else
@@ -442,10 +524,10 @@ RealHttpReplyMessage* HttpResponseParser::parseResMsg(char *buf, size_t bufLengt
 
         recv_body_length += bufLength;
 
-//        EV_DEBUG_NOMODULE << "payload add is: " << buf << endl;
+        EV_DEBUG_NOMODULE << "payload add is: " << buf << endl;
     }
 
-//    EV_DEBUG_NOMODULE << "payload now is:" << httpResponse->payload() << endl;
+    EV_DEBUG_NOMODULE << "payload now is:" << httpResponse->payload() << endl;
     EV_DEBUG_NOMODULE << "payload length now is :" << recv_body_length << endl;
     EV_DEBUG_NOMODULE << "httpResponse bytelength is: " << httpResponse->getByteLength() << endl;
 
@@ -464,7 +546,7 @@ RealHttpReplyMessage* HttpResponseParser::parseResMsg(char *buf, size_t bufLengt
     }
     /*
      * else if received application bytelength till now for this message is larger than response's bytelength,
-     * means there's no Application layer stick package, just return the whole http msg back to browser
+     * means there's Application layer stick package, there's content belonging to the next response's
      */
     else if (httpResponse->getByteLength() < recv_body_length)
     {
@@ -478,6 +560,44 @@ RealHttpReplyMessage* HttpResponseParser::parseResMsg(char *buf, size_t bufLengt
         std::string payload;
         payload.assign(totalData.substr(0, httpResponse->getByteLength()));
         nextHeader.assign(totalData.substr(httpResponse->getByteLength(), nextHeaderLength));
+        EV_DEBUG_NOMODULE << "payload is: " << payload << endl;
+        EV_DEBUG_NOMODULE << "nextHeader is: " << nextHeader << endl;
+
+        /**
+         * FOR_DEBUG
+         */
+        size_t startOfNextHeader = nextHeader.find_first_of("HTTP");
+        if (startOfNextHeader != string::npos)
+        {
+            if (startOfNextHeader != 0)
+            {
+                EV_DEBUG_NOMODULE << "real start of nextHeader is: " << startOfNextHeader << endl;
+                std::string realNextHeader = nextHeader.substr(startOfNextHeader);
+                nextHeader.assign(realNextHeader);
+            }
+            else
+            {
+                EV_DEBUG_NOMODULE << "get nextHeader right! " << endl;
+            }
+        }
+        else
+        {
+            EV_DEBUG_NOMODULE << "the nextHeader recoded doesn't start as a response http message " << endl;
+
+            size_t startOfpayload = payload.find_first_of("HTTP");
+            if (startOfpayload != string::npos)
+            {
+                EV_DEBUG_NOMODULE << "the nextHeader appears in the payload, start of payload is: " << startOfpayload << endl;
+                std::string realNextHeader = payload.substr(startOfpayload);
+                realNextHeader.append(nextHeader);
+                nextHeader.assign(realNextHeader);
+            }
+            else
+            {
+                EV_DEBUG_NOMODULE << "the nextHeader doesn't appear in the payload " << endl;
+            }
+        }
+
         httpResponse->setPayload(payload.c_str());
         recv_body_length = 0;
         return httpResponse;
@@ -488,77 +608,91 @@ RealHttpReplyMessage* HttpResponseParser::parseResMsg(char *buf, size_t bufLengt
     }
 }
 
+bool HttpResponseParser::ifNextHeaderSticked()
+{
+    return nextHeaderSticked;
+}
+
+void HttpResponseParser::setMsgParseFin(bool fin)
+{
+    msgParseFin = fin;
+}
+
+bool HttpResponseParser::getMsgParseFin()
+{
+    return msgParseFin;
+}
+
 void CHttpParser::add_message_header(const std::string& name, const std::string& value)
 {
-  message_header_key_prev_ = true;
-  message_headers.push_back(std::make_pair(name, value));
+    message_header_key_prev_ = true;
+    message_headers.push_back(std::make_pair(name, value));
 }
 
 void CHttpParser::set_last_message_header_value(const std::string& value)
 {
-  message_header_key_prev_ = false;
-  Headers::value_type &item = message_headers.back();
-  item.second = value;
-  check_transfer_encoding_chunked(&chunked_message_, item);
-  //check_connection_close(&message_connection_close_, item);
+    message_header_key_prev_ = false;
+    Headers::value_type &item = message_headers.back();
+    item.second = value;
+    check_transfer_encoding_chunked(&chunked_message_, item);
+    //check_connection_close(&message_connection_close_, item);
 }
 
 bool CHttpParser::get_message_header_key_prev() const
 {
-  return message_header_key_prev_;
+    return message_header_key_prev_;
 }
 
 void CHttpParser::append_last_message_header_key(const char *data, size_t len)
 {
-  assert(message_header_key_prev_);
-  Headers::value_type &item = message_headers.back();
-  item.first.append(data, len);
+    assert(message_header_key_prev_);
+    Headers::value_type &item = message_headers.back();
+    item.first.append(data, len);
 }
 
 void CHttpParser::append_last_message_header_value(const char *data, size_t len)
 {
-  assert(!message_header_key_prev_);
-  Headers::value_type &item = message_headers.back();
-  item.second.append(data, len);
+    assert(!message_header_key_prev_);
+    Headers::value_type &item = message_headers.back();
+    item.second.append(data, len);
 }
 
 void CHttpParser::set_message_major(int major)
 {
-  message_major_ = major;
+    message_major_ = major;
 }
 
 void CHttpParser::set_message_minor(int minor)
 {
-  message_minor_ = minor;
+    message_minor_ = minor;
 }
 
 int CHttpParser::get_message_major() const
 {
-  return message_major_;
+    return message_major_;
 }
 
 int CHttpParser::get_message_minor() const
 {
-  return message_minor_;
+    return message_minor_;
 }
 
 void CHttpParser::set_message_state(int state)
 {
-  message_state_ = state;
+    message_state_ = state;
 }
 
 int CHttpParser::get_message_state() const
 {
-  return message_state_;
+    return message_state_;
 }
 
 const Headers& CHttpParser::get_message_headers() const
 {
-  return message_headers;
+    return message_headers;
 }
 
-void CHttpParser::check_header_field(bool *result, const Headers::value_type &item, const char *name,
-                                            const char *value)
+void CHttpParser::check_header_field(bool *result, const Headers::value_type &item, const char *name, const char *value)
 {
     if (strcmp(item.first.c_str(), name) == 0)
     {

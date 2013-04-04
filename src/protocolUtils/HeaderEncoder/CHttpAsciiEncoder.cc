@@ -225,11 +225,11 @@ RealHttpReplyMessage* CHttpAsciiEncoder::parseResMsg(const char *data, size_t le
     if (httpParsers[sockID] == NULL)
     {
         httpParsers[sockID] = new HttpResponseParser();
-        EV_DEBUG_NOMODULE << "New a HttpResponseParser" << endl;
+        EV_DEBUG_NOMODULE << "New a HttpResponseParser in parseResMsg" << endl;
     }
     else
     {
-        EV_DEBUG_NOMODULE << "Use an old HttpResponseParser" << endl;
+        EV_DEBUG_NOMODULE << "Use an old HttpResponseParser in parseResMsg" << endl;
     }
 
     RealHttpReplyMessage* httpResponse = dynamic_cast<HttpResponseParser*>(httpParsers[sockID])->parseResMsg(const_cast<char*>(data), len, msg);
@@ -242,6 +242,57 @@ RealHttpReplyMessage* CHttpAsciiEncoder::parseResMsg(const char *data, size_t le
     }
 
     return httpResponse;
+}
+
+/** try to deal with the rest bytes */
+RealHttpReplyMessage *CHttpAsciiEncoder::dealWithRestBytes(Socket_ID_Type sockID)
+{
+    if (httpParsers[sockID] == NULL)
+    {
+        httpParsers[sockID] = new HttpResponseParser();
+        EV_DEBUG_NOMODULE << "New a HttpResponseParser in dealWithRestBytes" << endl;
+    }
+    else
+    {
+        EV_DEBUG_NOMODULE << "Use an old HttpResponseParser in dealWithRestBytes" << endl;
+    }
+
+    /**
+     * if there's bytes belong to next response, here must try to parse the bytes
+     * (wait for the next application message may lose to parse a response)
+     */
+    if (dynamic_cast<HttpResponseParser*>(httpParsers[sockID])->ifNextHeaderSticked())
+    {
+        EV_DEBUG_NOMODULE << "There's bytes belong to next response, needs to try parse!" << endl;
+
+        RealHttpReplyMessage* httpResponse = dynamic_cast<HttpResponseParser*>(httpParsers[sockID])->parseResMsg(NULL, 0, NULL);
+
+        if (httpResponse != NULL)
+        {
+            delete httpParsers[sockID];
+            httpParsers[sockID] = NULL;
+            EV_DEBUG_NOMODULE << "Finish this response's parsing, delete the HttpResponseParser" << endl;
+        }
+        else
+        {
+            /**
+             * if there's bytes belong to next response, the parser must be released
+             */
+            if (dynamic_cast<HttpResponseParser*>(httpParsers[sockID])->ifNextHeaderSticked())
+            {
+                delete httpParsers[sockID];
+                httpParsers[sockID] = NULL;
+                EV_DEBUG_NOMODULE << "The response is not complete, cannot parse this time, delete the HttpResponseParser" << endl;
+            }
+        }
+
+        return httpResponse;
+    }
+    else
+    {
+        EV_DEBUG_NOMODULE << "There's  no bytes left, don't need to try parse!" << endl;
+        return NULL;
+    }
 }
 
 /** initialize parsers related to sockID */

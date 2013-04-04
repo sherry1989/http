@@ -120,6 +120,12 @@ class HttpResponseParser : public CHttpParser
 
         RealHttpReplyMessage* parseResMsg(char *buf, size_t bufLength, cPacket *msg);
 
+        bool ifNextHeaderSticked();
+
+        void setMsgParseFin(bool fin);
+
+        bool getMsgParseFin();
+
         RealHttpReplyMessage* httpResponse;
 
     private:
@@ -127,6 +133,8 @@ class HttpResponseParser : public CHttpParser
 
         static bool nextHeaderSticked;
         static std::string nextHeader;
+
+        bool msgParseFin;
 };
 
 namespace RequestParser

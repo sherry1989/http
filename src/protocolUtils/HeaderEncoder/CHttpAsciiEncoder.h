@@ -32,6 +32,9 @@ class CHttpAsciiEncoder: public CHeaderEncoderBase
         /** Parse a received byte message to a RealHttpReplyMessage */
         virtual RealHttpReplyMessage* parseResMsg(const char *data, size_t len, cPacket *msg, Socket_ID_Type sockID);
 
+        /** try to deal with the rest bytes */
+        virtual RealHttpReplyMessage *dealWithRestBytes(Socket_ID_Type sockID);
+
         /** initialize parsers related to sockID */
         virtual void initParsers(Socket_ID_Type sockID);
 

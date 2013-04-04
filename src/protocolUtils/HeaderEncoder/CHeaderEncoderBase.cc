@@ -35,15 +35,19 @@ std::string CHeaderEncoderBase::generateResMsgHeader(const HeaderFrame responseF
 /** Parse a received byte message to a RealHttpRequestMessage */
 RealHttpRequestMessage* CHeaderEncoderBase::parseReqMsg(const char *data, size_t len, cPacket *msg, Socket_ID_Type sockID)
 {
-    RealHttpRequestMessage* httpRequest = new RealHttpRequestMessage();
-    return httpRequest;
+    return NULL;
 }
 
 /** Parse a received byte message to a RealHttpReplyMessage */
 RealHttpReplyMessage* CHeaderEncoderBase::parseResMsg(const char *data, size_t len, cPacket *msg, Socket_ID_Type sockID)
 {
-    RealHttpReplyMessage *httpResponse = new RealHttpReplyMessage();
-    return httpResponse;
+    return NULL;
+}
+
+/** try to deal with the rest bytes */
+RealHttpReplyMessage *CHeaderEncoderBase::dealWithRestBytes(Socket_ID_Type sockID)
+{
+    return NULL;
 }
 
 /** initialize parsers related to sockID */
