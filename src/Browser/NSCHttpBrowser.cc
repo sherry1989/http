@@ -237,7 +237,7 @@ void NSCHttpBrowser::socketDataArrived(int connId, void *yourPtr, cPacket *msg, 
 
     NSCSockData *sockdata = (NSCSockData*) yourPtr;
 
-    cPacket *parsedMsg = pMessageController->praseResponseMessage(msg, sockdata->sockID);
+    cPacket *parsedMsg = pMessageController->parseResponseMessage(msg, sockdata->sockID);
 
     parseResponseMessage(connId, sockdata, parsedMsg);
 }

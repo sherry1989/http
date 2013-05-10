@@ -34,7 +34,7 @@ class CMessageController
         RealHttpRequestMessage* parseRequestMessage(cPacket *msg, Socket_ID_Type sockID);
 
         /** Parse a received byte message to a RealHttpReplyMessage */
-        RealHttpReplyMessage* praseResponseMessage(cPacket *msg, Socket_ID_Type sockID);
+        RealHttpReplyMessage* parseResponseMessage(cPacket *msg, Socket_ID_Type sockID);
 
         /** try to deal with the rest bytes */
         RealHttpReplyMessage *dealWithRestBytes(Socket_ID_Type sockID);

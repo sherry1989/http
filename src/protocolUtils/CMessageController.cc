@@ -232,7 +232,7 @@ RealHttpRequestMessage *CMessageController::parseRequestMessage(cPacket *msg, So
 }
 
 /** Parse a received byte message to a RealHttpReplyMessage */
-RealHttpReplyMessage *CMessageController::praseResponseMessage(cPacket *msg, Socket_ID_Type sockID)
+RealHttpReplyMessage *CMessageController::parseResponseMessage(cPacket *msg, Socket_ID_Type sockID)
 {
     /**
      * 1. get application layer message content
