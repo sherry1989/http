@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scave:Analysis xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:scave="http://www.omnetpp.org/omnetpp/scave">
+  <inputs>
+    <inputs name="*.vec"/>
+    <inputs name="*.sca"/>
+  </inputs>
+  <datasets>
+    <datasets name="cli_response_stat">
+      <items xsi:type="scave:Add" filterPattern="name(response.*)"/>
+      <items xsi:type="scave:BarChart" name="cliResStat">
+        <properties name="Plot.Caching" value="false"/>
+        <properties name="Plot.BackgroundColor" value="lavender"/>
+        <properties name="Graph.Title" value="Client Response Statistics"/>
+        <properties name="X.Axis.Title" value="pipelining mode"/>
+        <properties name="Y.Axis.Title" value="msg number"/>
+        <properties name="Legend.Display" value="true"/>
+        <properties name="Legend.Position" value="Below"/>
+      </items>
+    </datasets>
+    <datasets name="total_byte_info">
+      <items xsi:type="scave:Add" filterPattern="name(bytes.*)"/>
+      <items xsi:type="scave:Group" name="client">
+        <items xsi:type="scave:BarChart" name="CliByteInfo">
+          <filters xsi:type="scave:Select" filterPattern="module(*.cli*.tcpApp[0])"/>
+          <properties name="Graph.Title" value="Client Byte Info"/>
+          <properties name="X.Axis.Title" value="pipelining mode"/>
+          <properties name="Y.Axis.Title" value="bytes(Byte)"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+      </items>
+      <items xsi:type="scave:Group" name="server">
+        <items xsi:type="scave:BarChart" name="SrvByteInfo">
+          <filters xsi:type="scave:Select" filterPattern="module(*.srv*.tcpApp[0])"/>
+          <properties name="Graph.Title" value="Server Byte Info"/>
+          <properties name="X.Axis.Title" value="pipelining mode"/>
+          <properties name="Y.Axis.Title" value="bytes(Byte)"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+      </items>
+    </datasets>
+    <datasets name="header_deflate_ratio_vec">
+      <items xsi:type="scave:Add" filterPattern="name(&quot;Header Deflate Ratio&quot;)" type="VECTOR"/>
+      <items xsi:type="scave:Group" name="client">
+        <items xsi:type="scave:Compute" operation="mean"/>
+        <items xsi:type="scave:LineChart" name="CliHeaderDeflateRatio" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.cli*.tcpApp[0])" type="VECTOR"/>
+          <properties name="Graph.Title" value="Client Header Deflate Ratio"/>
+          <properties name="X.Axis.Title" value="simtime(s)"/>
+          <properties name="Y.Axis.Title" value="deflate ratio"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+      </items>
+      <items xsi:type="scave:Group" name="server">
+        <items xsi:type="scave:Compute" operation="mean"/>
+        <items xsi:type="scave:LineChart" name="SrvHeaderDeflateRatio" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.srv*.tcpApp[0])" type="VECTOR"/>
+          <properties name="Graph.Title" value="Server Header Deflate Ratio"/>
+          <properties name="X.Axis.Title" value="simtime(s)"/>
+          <properties name="Y.Axis.Title" value="deflate ratio"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+      </items>
+    </datasets>
+    <datasets name="total_deflate_ratio_vec">
+      <items xsi:type="scave:Add" filterPattern="name(&quot;Total Deflate Ratio&quot;)" type="VECTOR"/>
+      <items xsi:type="scave:Group" name="client">
+        <items xsi:type="scave:Compute" operation="mean"/>
+        <items xsi:type="scave:LineChart" name="CliTotalDeflateRatio" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.cli*.tcpApp[0])" type="VECTOR"/>
+          <properties name="Graph.Title" value="Client Total Deflate Ratio"/>
+          <properties name="X.Axis.Title" value="simtime(s)"/>
+          <properties name="Y.Axis.Title" value="deflate ratio"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+      </items>
+      <items xsi:type="scave:Group" name="server">
+        <items xsi:type="scave:Compute" operation="mean"/>
+        <items xsi:type="scave:LineChart" name="SrvTotalDeflateRatio" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.srv*.tcpApp[0])" type="VECTOR"/>
+          <properties name="Graph.Title" value="Server Total Deflate Ratio"/>
+          <properties name="X.Axis.Title" value="simtime(s)"/>
+          <properties name="Y.Axis.Title" value="deflate ratio"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+      </items>
+    </datasets>
+    <datasets name="Throughput">
+      <items xsi:type="scave:Add" filterPattern="name(&quot;thruput (bit/sec)&quot;)" type="VECTOR"/>
+      <items xsi:type="scave:Group" name="client">
+        <items xsi:type="scave:Group" name="cliUpThruput">
+          <items xsi:type="scave:Apply" operation="sum"/>
+          <items xsi:type="scave:LineChart" name="cliUpThruput" lineNameFormat="">
+            <filters xsi:type="scave:Select" filterPattern="module(*.cliUp*)" type="VECTOR"/>
+            <properties name="Graph.Title" value="Client Upload Throughput"/>
+            <properties name="X.Axis.Title" value="simTime(sec)"/>
+            <properties name="Y.Axis.Title" value="Throughput(bit)"/>
+            <properties name="Legend.Display" value="true"/>
+            <properties name="Legend.Position" value="Below"/>
+          </items>
+        </items>
+        <items xsi:type="scave:Group" name="cliDownThruput">
+          <items xsi:type="scave:Apply" operation="sum"/>
+          <items xsi:type="scave:LineChart" name="cliDownThruput" lineNameFormat="">
+            <filters xsi:type="scave:Select" filterPattern="module(*.cliDown*)" type="VECTOR"/>
+            <properties name="Graph.Title" value="Client Download Throughput"/>
+            <properties name="X.Axis.Title" value="simTime(sec)"/>
+            <properties name="Y.Axis.Title" value="Throughput(bit)"/>
+            <properties name="Legend.Display" value="true"/>
+            <properties name="Legend.Position" value="Below"/>
+          </items>
+        </items>
+      </items>
+      <items xsi:type="scave:Group" name="server">
+        <items xsi:type="scave:LineChart" name="srvUpThruput" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.srvUp*)" type="VECTOR"/>
+          <properties name="Graph.Title" value="Server Upload Throughput"/>
+          <properties name="X.Axis.Title" value="simTime(sec)"/>
+          <properties name="Y.Axis.Title" value="Thruput(bit/sec)"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+        <items xsi:type="scave:LineChart" name="srvDownThruput" lineNameFormat="">
+          <filters xsi:type="scave:Select" filterPattern="module(*.srvDown*)" type="VECTOR"/>
+          <properties name="Graph.Title" value="Server Download Throughput"/>
+          <properties name="X.Axis.Title" value="simTime(sec)"/>
+          <properties name="Y.Axis.Title" value="Thruput(bit/sec)"/>
+          <properties name="Legend.Display" value="true"/>
+          <properties name="Legend.Position" value="Below"/>
+        </items>
+      </items>
+    </datasets>
+    <datasets name="BW_ratio">
+      <items xsi:type="scave:Add" filterPattern="name(&quot;thruput (bit/sec)&quot;)" type="VECTOR"/>
+      <items xsi:type="scave:Group" name="client">
+        <items xsi:type="scave:Group" name="cliUpThruput">
+          <items xsi:type="scave:Apply" operation="divide-by">
+            <params name="a" value="280000"/>
+          </items>
+          <items xsi:type="scave:LineChart" name="cliUpBWRatio" lineNameFormat="">
+            <filters xsi:type="scave:Select" filterPattern="module(*.cliUp*)" type="VECTOR"/>
+            <properties name="Graph.Title" value="Client Upload Bandwidth Use Ratio"/>
+            <properties name="X.Axis.Title" value="simTime(sec)"/>
+            <properties name="Y.Axis.Title" value="Bandwidth Use Ratio"/>
+            <properties name="Legend.Display" value="true"/>
+            <properties name="Legend.Position" value="Below"/>
+          </items>
+        </items>
+        <items xsi:type="scave:Group" name="cliDownThruput">
+          <items xsi:type="scave:Apply" operation="divide-by">
+            <params name="a" value="1960000"/>
+          </items>
+          <items xsi:type="scave:LineChart" name="cliDownBWRatio" lineNameFormat="">
+            <filters xsi:type="scave:Select" filterPattern="module(*.cliDown*)" type="VECTOR"/>
+            <properties name="Graph.Title" value="Client Download Bandwidth Use Ratio"/>
+            <properties name="X.Axis.Title" value="simTime(sec)"/>
+            <properties name="Y.Axis.Title" value="Bandwidth Use Ratio"/>
+            <properties name="Legend.Display" value="true"/>
+            <properties name="Legend.Position" value="Below"/>
+          </items>
+        </items>
+      </items>
+      <items xsi:type="scave:Group" name="server">
+        <items xsi:type="scave:Group" name="srvUpThruput">
+          <items xsi:type="scave:Apply" operation="divide-by">
+            <params name="a" value="100000000"/>
+          </items>
+          <items xsi:type="scave:LineChart" name="srvUpBWRatio" lineNameFormat="">
+            <filters xsi:type="scave:Select" filterPattern="module(*.srvUp*)" type="VECTOR"/>
+            <properties name="Graph.Title" value="Server Upload Bandwidth Use Ratio"/>
+            <properties name="X.Axis.Title" value="simTime(sec)"/>
+            <properties name="Y.Axis.Title" value="Bandwidth Use Ratio"/>
+            <properties name="Legend.Display" value="true"/>
+            <properties name="Legend.Position" value="Below"/>
+          </items>
+        </items>
+        <items xsi:type="scave:Group" name="srvDownThruput">
+          <items xsi:type="scave:Apply" operation="divide-by">
+            <params name="a" value="100000000"/>
+          </items>
+          <items xsi:type="scave:LineChart" name="srvDownBWRatio" lineNameFormat="">
+            <filters xsi:type="scave:Select" filterPattern="module(*.srvDown*)" type="VECTOR"/>
+            <properties name="Graph.Title" value="Server Download Bandwidth Use Ratio"/>
+            <properties name="X.Axis.Title" value="simTime(sec)"/>
+            <properties name="Y.Axis.Title" value="Bandwidth Use Ratio"/>
+            <properties name="Legend.Display" value="true"/>
+            <properties name="Legend.Position" value="Below"/>
+          </items>
+        </items>
+      </items>
+    </datasets>
+  </datasets>
+  <chartSheets>
+    <chartSheets name="default" charts="//@datasets/@datasets.0/@items.1 //@datasets/@datasets.1/@items.1/@items.0 //@datasets/@datasets.2/@items.1/@items.1 //@datasets/@datasets.4/@items.1/@items.0/@items.1 //@datasets/@datasets.2/@items.2/@items.1 //@datasets/@datasets.3/@items.1/@items.1 //@datasets/@datasets.3/@items.2/@items.1 //@datasets/@datasets.1/@items.2/@items.0 //@datasets/@datasets.4/@items.1/@items.1/@items.1 //@datasets/@datasets.4/@items.2/@items.0 //@datasets/@datasets.4/@items.2/@items.1 //@datasets/@datasets.5/@items.1/@items.0/@items.1 //@datasets/@datasets.5/@items.1/@items.1/@items.1 //@datasets/@datasets.5/@items.2/@items.0/@items.1 //@datasets/@datasets.5/@items.2/@items.1/@items.1"/>
+  </chartSheets>
+</scave:Analysis>
