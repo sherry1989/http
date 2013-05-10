@@ -20,4 +20,5 @@ package http.src.protocolUtils.MessageInfoSrc;
 //
 simple SelfGen extends MsgInfoSrcBase
 {
+    @class(SelfGen);
 }

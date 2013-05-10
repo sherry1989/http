@@ -22,6 +22,9 @@ SelfGen::~SelfGen()
 void SelfGen::initialize(int stage)
 {
     // TODO - Generated method body
+    EV_DEBUG << "Initializing stage " << stage << endl;
+
+    MsgInfoSrcBase::initialize(stage);
 }
 
 void SelfGen::finish()

@@ -727,16 +727,16 @@ void NSCHttpServer::setMessageFactory()
     {
         case GENERATE:
         {
-            pSrc = dynamic_cast<SelfGen*>(getParentModule()->getParentModule()->getSubmodule("SelfGen"));
+            pSrc = dynamic_cast<SelfGen*>(getParentModule()->getParentModule()->getSubmodule("selfGen"));
             if (pSrc == NULL)
-                error("pHarParser module not found");
+                error("selfGen module not found");
             break;
         }
         case HAR_FILE:
         {
             pSrc = dynamic_cast<HarParser*>(getParentModule()->getParentModule()->getSubmodule("harParser"));
             if (pSrc == NULL)
-                error("pHarParser module not found");
+                error("harParser module not found");
             break;
         }
         default:
