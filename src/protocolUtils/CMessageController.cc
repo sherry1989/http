@@ -263,10 +263,16 @@ RealHttpReplyMessage *CMessageController::parseResponseMessage(cPacket *msg, Soc
     return httpResponse;
 }
 
-/** try to deal with the rest bytes */
-RealHttpReplyMessage *CMessageController::dealWithRestBytes(Socket_ID_Type sockID)
+/** try to deal with the rest bytes in response message */
+RealHttpReplyMessage *CMessageController::dealWithRestResBytes(Socket_ID_Type sockID)
 {
-    return pEncoder->dealWithRestBytes(sockID);
+    return pEncoder->dealWithRestResBytes(sockID);
+}
+
+/** try to deal with the rest bytes in request message */
+RealHttpRequestMessage *CMessageController::dealWithRestReqBytes(Socket_ID_Type sockID)
+{
+    return pEncoder->dealWithRestReqBytes(sockID);
 }
 
 Socket_ID_Type CMessageController::getNewSockID()

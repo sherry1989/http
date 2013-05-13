@@ -189,7 +189,7 @@ namespace ResponseParser
                 payload.assign(buf, len);
             }
             parser->httpResponse->setPayload(payload.c_str());
-    //        parser->httpResponse->setPayload(buf);
+            //        parser->httpResponse->setPayload(buf);
             parser->set_recv_body_length(len);
 
             EV_DEBUG_NOMODULE << "payload is:" << parser->httpResponse->payload() << endl;
@@ -199,9 +199,9 @@ namespace ResponseParser
 
             parser->setMsgParseFin(true);
 
-    //        parser->httpResponse->setPayload(buf);
-    //        parser->httpResponse->setContentLength(len);
-    //        parser->httpResponse->setByteLength(len);
+            //        parser->httpResponse->setPayload(buf);
+            //        parser->httpResponse->setContentLength(len);
+            //        parser->httpResponse->setByteLength(len);
         }
         return 0;
     }
@@ -314,6 +314,9 @@ namespace ResponseParser
     }
 }
 
+bool HttpRequestParser::nextHeaderSticked = false;
+std::string HttpRequestParser::nextHeader;
+
 bool HttpResponseParser::nextHeaderSticked = false;
 std::string HttpResponseParser::nextHeader;
 
@@ -362,10 +365,69 @@ HttpResponseParser::~HttpResponseParser()
 
 RealHttpRequestMessage* HttpRequestParser::parseReqMsg(const char *data, size_t len, cPacket *msg)
 {
-    httpRequest->setName(msg->getName());
-    httpRequest->setSentFrom(msg->getSenderModule(), msg->getSenderGateId(), msg->getSendingTime());
+    if (msg != NULL)
+    {
+        EV_DEBUG_NOMODULE << "Start parse a new http request. message name is " << msg->getName() << endl;
+        EV_DEBUG_NOMODULE << "income bytes before parse ByteLength is:" << len << endl;
+        EV_DEBUG_NOMODULE << "income bytes before parse ByteArray is:" << data << endl;
+        httpRequest->setName(msg->getName());
+        httpRequest->setSentFrom(msg->getSenderModule(), msg->getSenderGateId(), msg->getSendingTime());
+    }
+    else
+    {
+        EV_DEBUG_NOMODULE << "Start to parse the rest bytes" << endl;
+    }
 
-    http_parser_execute(pRequestParser, &RequestParser::parserCallback, data, len);
+    EV_DEBUG_NOMODULE << "nextHeaderSticked before if is " << nextHeaderSticked << endl;
+
+    std::string totalData;
+    if (nextHeaderSticked)
+    {
+        totalData = nextHeader;
+        totalData.append(data, len);
+
+        EV_DEBUG_NOMODULE << "HTTP Request after deal to parse ByteLength is:" << totalData.size() << endl;
+        EV_DEBUG_NOMODULE << "HTTP Request after deal to parse ByteArray is:" << totalData << endl;
+    }
+    else
+    {
+        totalData.assign(data, len);
+    }
+
+    size_t reqEnd = totalData.find("\r\n\r\n") + 4;
+    size_t parseResult;
+    if (reqEnd == totalData.size())
+    {
+        nextHeaderSticked = false;
+        parseResult = http_parser_execute(pRequestParser, &RequestParser::parserCallback, totalData.c_str(), totalData.size());
+    }
+    else
+    {
+        nextHeaderSticked = true;
+        nextHeader.assign(totalData, reqEnd, (totalData.size() - reqEnd));
+        parseResult = http_parser_execute(pRequestParser, &RequestParser::parserCallback, totalData.c_str(), reqEnd);
+    }
+
+    EV_DEBUG_NOMODULE << "parseResult is:" << parseResult << endl;
+
+    if (get_message_state() != HEADER_COMPLETE)
+    {
+        EV_DEBUG_NOMODULE << "HTTP Response not complete! " << endl;
+
+        /**
+         * restore the unparsed bytes in nextHeader and set nextHeaderSticked to true to wait next time's parsing
+         */
+        if (nextHeader.size() != 0)
+        {
+            EV_DEBUG_NOMODULE << "The unparsed bytes should restore to nextHeader." << endl;
+            nextHeaderSticked = true;
+            EV_DEBUG_NOMODULE << "nextHeaderSticked is set to " << nextHeaderSticked << endl;
+            nextHeader.assign(totalData);
+            EV_DEBUG_NOMODULE << "nextHeader is: " << nextHeader << endl;
+        }
+
+        return NULL;
+    }
 
     http_errno htperr = HTTP_PARSER_ERRNO(pRequestParser);
     if (htperr == HPE_OK)
@@ -379,6 +441,11 @@ RealHttpRequestMessage* HttpRequestParser::parseReqMsg(const char *data, size_t 
     }
 
     return httpRequest;
+}
+
+bool HttpRequestParser::ifNextHeaderSticked()
+{
+    return nextHeaderSticked;
 }
 
 /** Parse a received byte message to a RealHttpReplyMessage */
@@ -429,7 +496,8 @@ RealHttpReplyMessage* HttpResponseParser::parseResMsg(char *buf, size_t bufLengt
             EV_DEBUG_NOMODULE << "HTTP Response after deal to parse ByteArray is:" << buf << endl;
         }
 
-        size_t parseResult = http_parser_execute(pResponseParser, &ResponseParser::parserCallback, const_cast<const char*>(buf), bufLength);
+        size_t parseResult = http_parser_execute(pResponseParser, &ResponseParser::parserCallback,
+                                                 const_cast<const char*>(buf), bufLength);
         EV_DEBUG_NOMODULE << "parseResult is:" << parseResult << endl;
 
         if (get_message_state() != HEADER_COMPLETE)
@@ -501,7 +569,8 @@ RealHttpReplyMessage* HttpResponseParser::parseResMsg(char *buf, size_t bufLengt
                 size_t resTotalLength = startOfPayload + recv_body_length;
                 if (resTotalLength < bufLength)
                 {
-                    EV_DEBUG_NOMODULE << "income bytes not complete parsed, parsed length is " << resTotalLength << endl;
+                    EV_DEBUG_NOMODULE << "income bytes not complete parsed, parsed length is " << resTotalLength
+                            << endl;
                     nextHeaderSticked = true;
                     EV_DEBUG_NOMODULE << "nextHeaderSticked is set to " << nextHeaderSticked << endl;
                     nextHeader.assign(totalData.substr(resTotalLength));
@@ -587,7 +656,8 @@ RealHttpReplyMessage* HttpResponseParser::parseResMsg(char *buf, size_t bufLengt
             size_t startOfpayload = payload.find_first_of("HTTP");
             if (startOfpayload != string::npos)
             {
-                EV_DEBUG_NOMODULE << "the nextHeader appears in the payload, start of payload is: " << startOfpayload << endl;
+                EV_DEBUG_NOMODULE << "the nextHeader appears in the payload, start of payload is: " << startOfpayload
+                        << endl;
                 std::string realNextHeader = payload.substr(startOfpayload);
                 realNextHeader.append(nextHeader);
                 nextHeader.assign(realNextHeader);

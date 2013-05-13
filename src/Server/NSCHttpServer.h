@@ -109,6 +109,14 @@ class NSCHttpServer : public HttpServer
 
         /** when socket is closed or failed, release the information related to the socket */
         void removeIDInfo(TCPSocket *sock);
+
+        /**
+         * parse a parsed request message, and try to deal with the rest bytes may remained unparsed
+         */
+        void parseRequestMessage(int connId, TCPSocket *socket, cPacket *parsedMsg);
+
+        /** try to deal with the rest bytes */
+        void dealWithRestBytes(int connId, TCPSocket *socket);
         //@}
 
     private:

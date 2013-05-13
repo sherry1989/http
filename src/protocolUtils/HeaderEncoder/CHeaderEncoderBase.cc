@@ -44,8 +44,14 @@ RealHttpReplyMessage* CHeaderEncoderBase::parseResMsg(const char *data, size_t l
     return NULL;
 }
 
-/** try to deal with the rest bytes */
-RealHttpReplyMessage *CHeaderEncoderBase::dealWithRestBytes(Socket_ID_Type sockID)
+/** try to deal with the rest bytes in response message */
+RealHttpReplyMessage *CHeaderEncoderBase::dealWithRestResBytes(Socket_ID_Type sockID)
+{
+    return NULL;
+}
+
+/** try to deal with the rest bytes in request message */
+RealHttpRequestMessage *CHeaderEncoderBase::dealWithRestReqBytes(Socket_ID_Type sockID)
 {
     return NULL;
 }

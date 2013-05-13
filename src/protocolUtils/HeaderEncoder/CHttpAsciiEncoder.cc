@@ -219,6 +219,57 @@ RealHttpRequestMessage* CHttpAsciiEncoder::parseReqMsg(const char *data, size_t 
     return httpRequest;
 }
 
+/** try to deal with the rest bytes in request message */
+RealHttpRequestMessage *CHttpAsciiEncoder::dealWithRestReqBytes(Socket_ID_Type sockID)
+{
+    if (httpParsers[sockID] == NULL)
+    {
+        httpParsers[sockID] = new HttpRequestParser();
+        EV_DEBUG_NOMODULE << "New a HttpRequestParser" << endl;
+    }
+    else
+    {
+        EV_DEBUG_NOMODULE << "Use an old HttpRequestParser" << endl;
+    }
+
+    /**
+     * if there's bytes belong to next request, here must try to parse the bytes
+     * (wait for the next application message may lose to parse a request)
+     */
+    if (dynamic_cast<HttpRequestParser*>(httpParsers[sockID])->ifNextHeaderSticked())
+    {
+        EV_DEBUG_NOMODULE << "There's bytes belong to next request, needs to try parse!" << endl;
+
+        RealHttpRequestMessage* httpRequest = dynamic_cast<HttpRequestParser*>(httpParsers[sockID])->parseReqMsg(NULL, 0, NULL);
+
+        if (httpRequest != NULL)
+        {
+            delete httpParsers[sockID];
+            httpParsers[sockID] = NULL;
+            EV_DEBUG_NOMODULE << "Finish this request's parsing, delete the HttpRequestParser" << endl;
+        }
+        else
+        {
+            /**
+             * if there's bytes belong to next request, the parser must be released
+             */
+            if (dynamic_cast<HttpRequestParser*>(httpParsers[sockID])->ifNextHeaderSticked())
+            {
+                delete httpParsers[sockID];
+                httpParsers[sockID] = NULL;
+                EV_DEBUG_NOMODULE << "The request is not complete, cannot parse this time, delete the HttpRequestParser" << endl;
+            }
+        }
+
+        return httpRequest;
+    }
+    else
+    {
+        EV_DEBUG_NOMODULE << "There's  no bytes left, don't need to try parse!" << endl;
+        return NULL;
+    }
+}
+
 /** Parse a received byte message to a RealHttpReplyMessage */
 RealHttpReplyMessage* CHttpAsciiEncoder::parseResMsg(const char *data, size_t len, cPacket *msg, Socket_ID_Type sockID)
 {
@@ -245,7 +296,7 @@ RealHttpReplyMessage* CHttpAsciiEncoder::parseResMsg(const char *data, size_t le
 }
 
 /** try to deal with the rest bytes */
-RealHttpReplyMessage *CHttpAsciiEncoder::dealWithRestBytes(Socket_ID_Type sockID)
+RealHttpReplyMessage *CHttpAsciiEncoder::dealWithRestResBytes(Socket_ID_Type sockID)
 {
     if (httpParsers[sockID] == NULL)
     {

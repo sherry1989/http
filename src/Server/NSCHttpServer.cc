@@ -254,14 +254,25 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
     }
     TCPSocket *socket = (TCPSocket*)yourPtr;
 
-    cPacket *prasedMsg = pMessageController->parseRequestMessage(msg, idPerSocket[socket]);
+    cPacket *parsedMsg = pMessageController->parseRequestMessage(msg, idPerSocket[socket]);
+
+    parseRequestMessage(connId, socket, parsedMsg);
+}
+
+/** parse a parsed request message */
+void NSCHttpServer::parseRequestMessage(int connId, TCPSocket *socket, cPacket *parsedMsg)
+{
+    if (parsedMsg == NULL)
+    {
+        return;
+    }
 
     // Should be a HttpRequestMessage
-    EV_DEBUG << "Socket data arrived on connection " << connId << ". Message=" << prasedMsg->getName() << ", kind="
-            << prasedMsg->getKind() << endl;
+    EV_DEBUG << "Socket data arrived on connection " << connId << ". Message=" << parsedMsg->getName() << ", kind="
+            << parsedMsg->getKind() << endl;
 
     // call the message handler to process the message.
-    HttpReplyMessage *reply = handleReceivedMessage(prasedMsg);
+    HttpReplyMessage *reply = handleReceivedMessage(parsedMsg);
     recvReqTimeVec.record(simTime());
 
     if (reply != NULL)
@@ -381,7 +392,20 @@ void NSCHttpServer::socketDataArrived(int connId, void *yourPtr, cPacket *msg, b
             scheduleAt(simTime() + replyDelay, reply);
         }
     }
-    delete prasedMsg; // Delete the received message here. Must not be deleted in the handler!
+    delete parsedMsg; // Delete the received message here. Must not be deleted in the handler!
+
+    /**
+     * since there may be some remaining bytes unparsed, should try to deal with them
+     */
+    dealWithRestBytes(connId, socket);
+}
+
+/** try to deal with the rest bytes */
+void NSCHttpServer::dealWithRestBytes(int connId, TCPSocket *socket)
+{
+    cPacket *parsedMsg = pMessageController->dealWithRestReqBytes(idPerSocket[socket]);
+
+    parseRequestMessage(connId, socket, parsedMsg);
 }
 
 void NSCHttpServer::handleSelfMessages(cMessage *msg)

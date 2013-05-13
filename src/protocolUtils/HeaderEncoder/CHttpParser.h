@@ -106,10 +106,15 @@ class HttpRequestParser : public CHttpParser
 
         RealHttpRequestMessage* parseReqMsg(const char *data, size_t len, cPacket *msg);
 
+        bool ifNextHeaderSticked();
+
         RealHttpRequestMessage* httpRequest;
 
     private:
         http_parser *pRequestParser;
+
+        static bool nextHeaderSticked;
+        static std::string nextHeader;
 };
 
 class HttpResponseParser : public CHttpParser
