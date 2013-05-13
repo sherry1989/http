@@ -411,7 +411,7 @@ void NSCHttpBrowser::parseResponseMessage(int connId, NSCSockData *sockdata, cPa
 /** try to deal with the rest bytes */
 void NSCHttpBrowser::dealWithRestBytes(int connId, NSCSockData *sockdata)
 {
-    cPacket *parsedMsg = pMessageController->dealWithRestBytes(sockdata->sockID);
+    cPacket *parsedMsg = pMessageController->dealWithRestResBytes(sockdata->sockID);
 
     parseResponseMessage(connId, sockdata, parsedMsg);
 }
